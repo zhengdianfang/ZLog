@@ -85,4 +85,4 @@ Testing rules:
 - Build: `pnpm build`  
 -  Lint: `pnpm lint`   
 - Typecheck: `pnpm typecheck`  
-- Test: pnpm test
+- Test: `pnpm run test`
