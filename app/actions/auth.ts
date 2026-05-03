@@ -107,3 +107,87 @@ export async function loginUser(formData: FormData): Promise<LoginResult> {
 
   redirect("/");
 }
+
+const verifyEmailSchema = z.object({
+  email: z.email("Invalid email format"),
+});
+
+export type VerifyEmailResult =
+  | { success: true }
+  | { success: false; errors: { email?: string[]; general?: string } };
+
+export async function verifyEmailForReset(
+  formData: FormData
+): Promise<VerifyEmailResult> {
+  const raw = { email: formData.get("email") };
+
+  const parsed = verifyEmailSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      success: false,
+      errors: { email: parsed.error.flatten().fieldErrors.email },
+    };
+  }
+
+  const email = parsed.data.email.toLowerCase();
+
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existing.length === 0) {
+    return { success: false, errors: { general: "No account found with that email" } };
+  }
+
+  redirect(`/reset-password?email=${encodeURIComponent(email)}`);
+}
+
+const resetPasswordSchema = z.object({
+  email: z.email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export type ResetPasswordResult =
+  | { success: true }
+  | { success: false; errors: { password?: string[]; general?: string } };
+
+export async function resetPassword(
+  formData: FormData
+): Promise<ResetPasswordResult> {
+  const raw = {
+    email: formData.get("email"),
+    password: formData.get("password"),
+  };
+
+  const parsed = resetPasswordSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors;
+    return {
+      success: false,
+      errors: { password: fieldErrors.password },
+    };
+  }
+
+  const email = parsed.data.email.toLowerCase();
+
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existing.length === 0) {
+    return { success: false, errors: { general: "No account found with that email" } };
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.email, email));
+
+  redirect("/login");
+}
