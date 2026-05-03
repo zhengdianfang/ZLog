@@ -1,0 +1,30 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: var(--background);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin-bottom: 24px;
+}
