@@ -1,4 +1,4 @@
-import { registerUser } from "../auth";
+import { registerUser, loginUser } from "../auth";
 import { db } from "@/db";
 import bcrypt from "bcryptjs";
 
@@ -10,14 +10,18 @@ jest.mock("@/db", () => ({
 
 jest.mock("bcryptjs", () => ({
   __esModule: true,
-  default: { hash: jest.fn() },
+  default: { hash: jest.fn(), compare: jest.fn() },
 }));
+
+jest.mock("next/navigation", () => ({ redirect: jest.fn() }));
 
 // drizzle-orm eq / schema columns are just values; mock them as no-ops
 jest.mock("drizzle-orm", () => ({ eq: jest.fn() }));
 jest.mock("@/db/schema", () => ({
   users: { id: "id", email: "email", passwordHash: "password_hash" },
 }));
+
+import { redirect } from "next/navigation";
 
 // --- helpers ---
 
@@ -48,6 +52,7 @@ beforeEach(() => {
   mockSelectReturning([]);
   mockInsertOk();
   (bcrypt.hash as jest.Mock).mockResolvedValue("hashed_password");
+  (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 });
 
 // --- tests ---
@@ -145,6 +150,102 @@ describe("registerUser", () => {
       expect(insertValues).toHaveBeenCalledWith(
         expect.objectContaining({ passwordHash: "hashed_password" })
       );
+    });
+  });
+});
+
+describe("loginUser", () => {
+  const existingUser = { id: 1, passwordHash: "hashed_pw" };
+
+  beforeEach(() => {
+    mockSelectReturning([existingUser]);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+  });
+
+  describe("validation", () => {
+    it("returns email error for invalid email format", async () => {
+      const result = await loginUser(
+        makeFormData({ email: "not-an-email", password: "secret123" })
+      );
+
+      expect(result).toEqual({
+        success: false,
+        errors: expect.objectContaining({ email: expect.any(Array) }),
+      });
+      expect(
+        (result as { success: false; errors: { email?: string[] } }).errors.email?.[0]
+      ).toBe("Invalid email format");
+    });
+
+    it("returns password error when password is empty", async () => {
+      const result = await loginUser(
+        makeFormData({ email: "user@example.com", password: "" })
+      );
+
+      expect(result).toEqual({
+        success: false,
+        errors: expect.objectContaining({ password: expect.any(Array) }),
+      });
+    });
+  });
+
+  describe("account not found", () => {
+    beforeEach(() => {
+      mockSelectReturning([]);
+    });
+
+    it("returns general error when account does not exist", async () => {
+      const result = await loginUser(
+        makeFormData({ email: "ghost@example.com", password: "secret123" })
+      );
+
+      expect(result).toEqual({
+        success: false,
+        errors: { general: "Account does not exist" },
+      });
+    });
+  });
+
+  describe("wrong password", () => {
+    beforeEach(() => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+    });
+
+    it("returns general error for incorrect password", async () => {
+      const result = await loginUser(
+        makeFormData({ email: "user@example.com", password: "wrong" })
+      );
+
+      expect(result).toEqual({
+        success: false,
+        errors: { general: "Invalid email or password" },
+      });
+    });
+  });
+
+  describe("successful login", () => {
+    it("redirects to homepage on valid credentials", async () => {
+      await loginUser(
+        makeFormData({ email: "user@example.com", password: "secret123" })
+      );
+
+      expect(redirect).toHaveBeenCalledWith("/");
+    });
+
+    it("normalizes email to lowercase before lookup", async () => {
+      await loginUser(
+        makeFormData({ email: "User@Example.COM", password: "secret123" })
+      );
+
+      expect(bcrypt.compare).toHaveBeenCalledWith("secret123", existingUser.passwordHash);
+    });
+
+    it("compares the submitted password against the stored hash", async () => {
+      await loginUser(
+        makeFormData({ email: "user@example.com", password: "mysecret" })
+      );
+
+      expect(bcrypt.compare).toHaveBeenCalledWith("mysecret", existingUser.passwordHash);
     });
   });
 });
