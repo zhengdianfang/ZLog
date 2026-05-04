@@ -9,30 +9,34 @@ description: An automated end-to-end development pipeline that leverages Trello 
 
 Execution Steps
 
-1.  **Input Identification**
+1.  **Prepare Branch**
+    * Run `git checkout main` to ensure you are on the main branch.
+    * Run `git pull --rebase` to sync with the latest remote changes before starting any work.
+
+2.  **Input Identification**
     * Accept `{{trello_card_name}}` — the name of the Trello story card — as the starting trigger.
 
-2.  **Context Retrieval (Trello MCP)**
+3.  **Context Retrieval (Trello MCP)**
     * Utilize the **Trello MCP (Model Context Protocol)** to search for the card by name (`{{trello_card_name}}`) within the **ZLog board**.
     * Fetch the matched card's full details, including its description and any attachments.
     * Extract functional requirements and predefined test cases from the card's description.
 
-3.  **Move Card to DOING**
+4.  **Move Card to DOING**
     * Before writing any code, move the Trello card to the **DOING** column via Trello MCP to signal that implementation has started.
 
-4.  **Parallel Sub-task Execution**
+5.  **Parallel Sub-task Execution**
     * **Task A: Functional Implementation** – Implement the core business logic based on requirements.
     * **Task B: Unit Testing** – Develop comprehensive unit tests to ensure code-level reliability.
     * **Task C: E2E Verification** – Once Task A and B are completed, execute functional verification using **Playwright** to ensure the UI and user flows meet the specifications.
 
-5.  **Move Card to TEST**
+6.  **Move Card to TEST**
     * Once implementation, unit tests, and E2E verification all pass, move the Trello card to the **TEST** column via Trello MCP to signal the feature is ready for QA.
 
-6.  **Contribution & PR Creation**
+7.  **Contribution & PR Creation**
     * Commit the verified changes to a feature branch.
     * Automatically create a **Pull Request (PR)** to the GitHub repository targeting `main`.
     * Report the PR URL to the user.
 
-7.  **CI/CD Integration & Merging**
+8.  **CI/CD Integration & Merging**
     * Trigger **GitHub Actions** to perform pipeline compilation and automated testing.
     * **Do NOT merge automatically.** After CI passes, ask the user for explicit approval before merging the Pull Request into `main`.
