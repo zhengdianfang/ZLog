@@ -71,15 +71,43 @@
   min-height: 0;
 }
 
-.logContent {
-  margin: 0;
-  padding: 24px;
+.logBody {
+  padding: 16px 0;
   font-size: 13px;
-  line-height: 1.6;
   font-family: "Menlo", "Monaco", "Consolas", monospace;
   color: var(--foreground);
+}
+
+.logLine {
+  display: flex;
+  align-items: baseline;
+  padding: 0 24px;
+  line-height: 1.6;
+  /* Skip rendering off-screen lines for large-file performance */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 20.8px;
+}
+
+.logLine:hover {
+  background: var(--line-hover, rgba(0, 0, 0, 0.03));
+}
+
+.lineNumber {
+  flex-shrink: 0;
+  padding-right: 16px;
+  text-align: right;
+  color: var(--text-muted, #999);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineContent {
+  flex: 1;
   white-space: pre;
   tab-size: 2;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 .binaryMessage {
@@ -106,5 +134,9 @@
 
   .closeButton:hover {
     background: #1a1a1a;
+  }
+
+  .logLine:hover {
+    --line-hover: rgba(255, 255, 255, 0.04);
   }
 }
