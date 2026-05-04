@@ -17,15 +17,22 @@ Execution Steps
     * Fetch the matched card's full details, including its description and any attachments.
     * Extract functional requirements and predefined test cases from the card's description.
 
-3.  **Parallel Sub-task Execution**
+3.  **Move Card to DOING**
+    * Before writing any code, move the Trello card to the **DOING** column via Trello MCP to signal that implementation has started.
+
+4.  **Parallel Sub-task Execution**
     * **Task A: Functional Implementation** – Implement the core business logic based on requirements.
     * **Task B: Unit Testing** – Develop comprehensive unit tests to ensure code-level reliability.
     * **Task C: E2E Verification** – Once Task A and B are completed, execute functional verification using **Playwright** to ensure the UI and user flows meet the specifications.
 
-4.  **Contribution & Code Review**
-    * Commit the verified changes to a feature branch.
-    * Automatically create a **Pull Request (PR)** to the GitHub repository.
+5.  **Move Card to TEST**
+    * Once implementation, unit tests, and E2E verification all pass, move the Trello card to the **TEST** column via Trello MCP to signal the feature is ready for QA.
 
-5.  **CI/CD Integration & Merging**
+6.  **Contribution & PR Creation**
+    * Commit the verified changes to a feature branch.
+    * Automatically create a **Pull Request (PR)** to the GitHub repository targeting `main`.
+    * Report the PR URL to the user.
+
+7.  **CI/CD Integration & Merging**
     * Trigger **GitHub Actions** to perform pipeline compilation and automated testing.
-    * Upon successful build and verification, automatically merge the Pull Request into the `main` branch.
+    * **Do NOT merge automatically.** After CI passes, ask the user for explicit approval before merging the Pull Request into `main`.
