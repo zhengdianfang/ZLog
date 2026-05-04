@@ -1,6 +1,6 @@
 import TopNav from "./_components/TopNav/TopNav";
 import AnalysisPanel from "./_components/AnalysisPanel/AnalysisPanel";
-import WelcomePanel from "./_components/WelcomePanel/WelcomePanel";
+import MainContent from "./_components/MainContent/MainContent";
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -9,7 +9,7 @@ export default function Home() {
       <TopNav />
       <div className={styles.body}>
         <main className={styles.content}>
-          <WelcomePanel />
+          <MainContent />
         </main>
         <AnalysisPanel />
       </div>

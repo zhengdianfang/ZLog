@@ -24,12 +24,14 @@ describe("WelcomePanel", () => {
     expect(html).toContain("Open Log File");
   });
 
-  it("lists supported file formats", () => {
+  it("lists supported file formats from the spec", () => {
+    expect(html).toContain(".qlog");
+    expect(html).toContain(".zip");
+    expect(html).toContain(".gz");
     expect(html).toContain(".log");
+    expect(html).toContain(".xlog");
     expect(html).toContain(".txt");
-    expect(html).toContain(".crash");
-    expect(html).toContain(".ips");
-    expect(html).toContain(".logcat");
+    expect(html).toContain(".xml");
   });
 
   it("renders documentation links", () => {
@@ -40,5 +42,9 @@ describe("WelcomePanel", () => {
   it("renders plugin download links", () => {
     expect(html).toContain("Android Studio Plugin");
     expect(html).toContain("Xcode Plugin");
+  });
+
+  it("does not show a validation error by default", () => {
+    expect(html).not.toContain('role="alert"');
   });
 });

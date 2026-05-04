@@ -111,6 +111,22 @@
   cursor: not-allowed;
 }
 
+.fileInput {
+  display: none;
+}
+
+.validationError {
+  font-size: 13px;
+  color: #dc2626;
+  margin-top: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .validationError {
+    color: #f87171;
+  }
+}
+
 /* Divider */
 .divider {
   height: 1px;
