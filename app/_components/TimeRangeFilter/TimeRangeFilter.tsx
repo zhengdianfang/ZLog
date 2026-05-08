@@ -1,18 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFilterStore } from "@/app/stores/filterStore";
 import { useFileStore } from "@/app/stores/fileStore";
 import styles from "./TimeRangeFilter.module.css";
 
 export default function TimeRangeFilter() {
-  const { startTime, endTime, setStartTime, setEndTime, clearFilter } =
+  const { startTime, endTime, setStartTime, setEndTime, beginClear, clearFilter } =
     useFilterStore();
   const { loadedFile } = useFileStore();
 
   const [localStart, setLocalStart] = useState(startTime);
   const [localEnd, setLocalEnd] = useState(endTime);
   const [error, setError] = useState<string | null>(null);
+  const [pendingClear, setPendingClear] = useState(false);
+
+  useEffect(() => {
+    if (!pendingClear) return;
+    const id = setTimeout(() => {
+      clearFilter();
+      setPendingClear(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [pendingClear, clearFilter]);
 
   const isFilterActive = startTime !== "" || endTime !== "";
   const disabled = !loadedFile?.content;
@@ -31,7 +41,8 @@ export default function TimeRangeFilter() {
     setLocalStart("");
     setLocalEnd("");
     setError(null);
-    clearFilter();
+    beginClear();
+    setPendingClear(true);
   }
 
   return (
@@ -42,7 +53,7 @@ export default function TimeRangeFilter() {
         </label>
         <input
           id="time-range-start"
-          type="datetime-local"
+          type="time"
           step="1"
           className={styles.input}
           value={localStart}
@@ -56,7 +67,7 @@ export default function TimeRangeFilter() {
         </label>
         <input
           id="time-range-end"
-          type="datetime-local"
+          type="time"
           step="1"
           className={styles.input}
           value={localEnd}
@@ -83,8 +94,13 @@ export default function TimeRangeFilter() {
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
+            disabled={pendingClear}
           >
-            Clear
+            {pendingClear ? (
+              <span className={styles.clearSpinner} aria-label="Clearing…" />
+            ) : (
+              "Clear"
+            )}
           </button>
         )}
       </div>

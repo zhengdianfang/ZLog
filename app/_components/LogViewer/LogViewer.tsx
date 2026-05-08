@@ -28,15 +28,20 @@ export default function LogViewer() {
     if (!isFilterActive) {
       return lines.map((line, index) => ({ line, originalIndex: index }));
     }
-    const start = startTime ? new Date(startTime) : null;
-    const end = endTime ? new Date(endTime) : null;
+    const toSeconds = (t: string) => {
+      const [h, m, s = "0"] = t.split(":");
+      return Number(h) * 3600 + Number(m) * 60 + parseFloat(s);
+    };
+    const start = startTime ? toSeconds(startTime) : null;
+    const end = endTime ? toSeconds(endTime) : null;
     return lines
       .map((line, index) => ({ line, originalIndex: index }))
       .filter(({ line }) => {
         const ts = parseLineTimestamp(line);
         if (!ts) return false;
-        if (start && ts < start) return false;
-        if (end && ts > end) return false;
+        const sec = ts.getHours() * 3600 + ts.getMinutes() * 60 + ts.getSeconds();
+        if (start !== null && sec < start) return false;
+        if (end !== null && sec > end) return false;
         return true;
       });
   }, [lines, isFilterActive, startTime, endTime]);
