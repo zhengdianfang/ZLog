@@ -65,10 +65,23 @@
   outline-offset: 2px;
 }
 
+.searchBar {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--panel-border, #e5e5e5);
+  flex-shrink: 0;
+}
+
 .content {
   flex: 1;
   overflow: auto;
   min-height: 0;
+}
+
+.highlight {
+  background: oklch(0.9 0.15 85);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 .logBody {
@@ -155,5 +168,13 @@
 
   .logLine:hover {
     --line-hover: rgba(255, 255, 255, 0.04);
+  }
+
+  .searchBar {
+    --panel-border: #222;
+  }
+
+  .highlight {
+    background: oklch(0.45 0.15 85);
   }
 }

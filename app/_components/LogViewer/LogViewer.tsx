@@ -5,6 +5,7 @@ import styles from "./LogViewer.module.css";
 import { useFileStore } from "@/app/stores/fileStore";
 import { useFilterStore } from "@/app/stores/filterStore";
 import { parseLineTimestamp } from "@/app/lib/timestampParser";
+import KeywordSearch from "@/app/_components/KeywordSearch/KeywordSearch";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -12,9 +13,24 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function highlightKeyword(text: string, keyword: string): React.ReactNode {
+  if (!keyword) return text;
+  const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <mark key={i} className={styles.highlight}>
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
+}
+
 export default function LogViewer() {
   const { loadedFile, closeFile } = useFileStore();
-  const { startTime, endTime } = useFilterStore();
+  const { startTime, endTime, keyword } = useFilterStore();
 
   const lines = useMemo(() => {
     if (!loadedFile?.content) return [];
@@ -22,10 +38,11 @@ export default function LogViewer() {
     return raw[raw.length - 1] === "" ? raw.slice(0, -1) : raw;
   }, [loadedFile]);
 
-  const isFilterActive = startTime !== "" || endTime !== "";
+  const isTimeFilterActive = startTime !== "" || endTime !== "";
+  const isKeywordActive = keyword.trim() !== "";
 
-  const displayLines = useMemo(() => {
-    if (!isFilterActive) {
+  const timeFilteredLines = useMemo(() => {
+    if (!isTimeFilterActive) {
       return lines.map((line, index) => ({ line, originalIndex: index }));
     }
     const toSeconds = (t: string) => {
@@ -44,11 +61,21 @@ export default function LogViewer() {
         if (end !== null && sec > end) return false;
         return true;
       });
-  }, [lines, isFilterActive, startTime, endTime]);
+  }, [lines, isTimeFilterActive, startTime, endTime]);
+
+  const displayLines = useMemo(() => {
+    if (!isKeywordActive) return timeFilteredLines;
+    const lower = keyword.toLowerCase();
+    return timeFilteredLines.filter(({ line }) => line.toLowerCase().includes(lower));
+  }, [timeFilteredLines, isKeywordActive, keyword]);
 
   if (!loadedFile) return null;
 
+  const isFilterActive = isTimeFilterActive || isKeywordActive;
   const lineNumWidth = `${String(lines.length).length}ch`;
+
+  const emptyDueToKeyword = isKeywordActive && displayLines.length === 0;
+  const emptyDueToTime = !isKeywordActive && isTimeFilterActive && timeFilteredLines.length === 0;
 
   return (
     <div className={styles.container}>
@@ -71,10 +98,23 @@ export default function LogViewer() {
           ✕
         </button>
       </header>
+      <div className={styles.searchBar}>
+        <KeywordSearch
+          matchCount={isKeywordActive ? displayLines.length : undefined}
+          totalFiltered={isKeywordActive ? timeFilteredLines.length : undefined}
+        />
+      </div>
       <div className={styles.content}>
         {loadedFile.content !== null ? (
           <>
-            {displayLines.length === 0 && isFilterActive ? (
+            {emptyDueToKeyword ? (
+              <div className={styles.emptyFilter}>
+                <p>No log entries match &ldquo;{keyword}&rdquo;.</p>
+                <p className={styles.emptyFilterHint}>
+                  Try a different keyword or clear the search.
+                </p>
+              </div>
+            ) : emptyDueToTime ? (
               <div className={styles.emptyFilter}>
                 <p>No log entries match the selected time range.</p>
                 <p className={styles.emptyFilterHint}>
@@ -91,7 +131,9 @@ export default function LogViewer() {
                     >
                       {originalIndex + 1}
                     </span>
-                    <span className={styles.lineContent}>{line}</span>
+                    <span className={styles.lineContent}>
+                      {isKeywordActive ? highlightKeyword(line, keyword) : line}
+                    </span>
                   </div>
                 ))}
               </div>
