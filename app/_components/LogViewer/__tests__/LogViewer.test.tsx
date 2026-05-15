@@ -4,13 +4,28 @@
 import { renderToString } from "react-dom/server";
 
 jest.mock("@/app/stores/fileStore");
+jest.mock("@/app/stores/filterStore");
 
 import { useFileStore } from "@/app/stores/fileStore";
+import { useFilterStore } from "@/app/stores/filterStore";
 
 const mockUseFileStore = useFileStore as unknown as jest.Mock;
+const mockUseFilterStore = useFilterStore as unknown as jest.Mock;
+
+const defaultFilterState = {
+  startTime: "",
+  endTime: "",
+  keyword: "",
+  isRegexMode: false,
+  isCaseSensitive: false,
+  setKeyword: jest.fn(),
+  setIsRegexMode: jest.fn(),
+  setIsCaseSensitive: jest.fn(),
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseFilterStore.mockReturnValue(defaultFilterState);
 });
 
 describe("LogViewer", () => {
@@ -157,5 +172,136 @@ describe("LogViewer", () => {
     const LogViewer = require("../LogViewer").default;
     const html = renderToString(<LogViewer />);
     expect(html).toContain("  indented line\ttabbed");
+  });
+
+  // --- Keyword search filter logic tests ---
+
+  it("filters lines by plain keyword (case-insensitive by default)", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "error",
+      isRegexMode: false,
+      isCaseSensitive: false,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "ERROR: crash\nINFO: all good\nError: timeout",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // Matching text is wrapped in <mark> for highlighting, so we check for
+    // the surrounding non-highlighted parts and the matched count instead.
+    expect(html).toContain(": crash");
+    expect(html).toContain(": timeout");
+    expect(html).not.toContain("INFO: all good");
+    expect(html).toContain("2 matched");
+  });
+
+  it("filters lines by plain keyword case-sensitively when isCaseSensitive is true", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "error",
+      isRegexMode: false,
+      isCaseSensitive: true,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "error: crash\nERROR: big crash\nINFO: ok",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // Only the lowercase "error" line should match.
+    expect(html).toContain(": crash");
+    expect(html).toContain("1 matched");
+    expect(html).not.toContain("INFO: ok");
+  });
+
+  it("filters lines using multi-keyword OR when pipe is used in non-regex mode", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "crash|ANR|OOM",
+      isRegexMode: false,
+      isCaseSensitive: false,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "crash detected\nANR happened\nOOM error\nINFO: normal",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // The matched keywords are wrapped in <mark>; check non-highlighted portions.
+    expect(html).toContain(" detected");
+    expect(html).toContain(" happened");
+    expect(html).toContain(" error");
+    expect(html).not.toContain("INFO: normal");
+    expect(html).toContain("3 matched");
+  });
+
+  it("filters lines using a valid regex in regex mode", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "err.*critical",
+      isRegexMode: true,
+      isCaseSensitive: false,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "err: critical issue\nwarning: minor\nerr: critical failure",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // 2 lines should match; the unmatched "warning" line must not appear.
+    expect(html).toContain("2 matched");
+    expect(html).toContain(" issue");
+    expect(html).toContain(" failure");
+    expect(html).not.toContain("warning: minor");
+  });
+
+  it("shows all lines (fail-open) when regex mode has an invalid pattern", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "[unclosed",
+      isRegexMode: true,
+      isCaseSensitive: false,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "line one\nline two",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // All lines should remain visible when regex is invalid.
+    expect(html).toContain("line one");
+    expect(html).toContain("line two");
   });
 });

@@ -23,7 +23,8 @@
 .input {
   width: 100%;
   height: 32px;
-  padding: 0 32px 0 32px;
+  /* right padding increased to 88px to leave room for two 28px toggles + clear button */
+  padding: 0 88px 0 32px;
   border: 1px solid var(--panel-border, #e5e5e5);
   border-radius: 6px;
   background: var(--background);
@@ -62,6 +63,72 @@
 .clearBtn:hover {
   background: var(--panel-bg, #f0f0f0);
   color: var(--foreground);
+}
+
+/* Toggle button group: absolutely positioned inside .inputRow, left of clear button */
+.toggleGroup {
+  position: absolute;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Base toggle button style — 28×28px compact icon-button */
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--text-muted, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #999);
+  font-size: 11px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  line-height: 1;
+}
+
+.toggleBtn:hover {
+  background: var(--panel-bg, #f0f0f0);
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.toggleBtn:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+
+/* Active (pressed) state: filled background with contrasting text */
+.toggleBtnActive {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.toggleBtnActive:hover {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+  opacity: 0.85;
+}
+
+/* Applied to .input when isRegexMode is true and the pattern is syntactically invalid */
+.inputError {
+  border-color: #d97706 !important;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+/* Error row beneath .inputRow — amber/warning colour, screen-reader announced */
+.regexError {
+  font-size: 12px;
+  color: #d97706;
+  margin: 0;
 }
 
 .resultCount {
