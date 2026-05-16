@@ -42,38 +42,14 @@ describe("KeywordSearch", () => {
     expect(html).toContain("Search logs");
   });
 
-  it("does not show result count when no keyword is set", () => {
+  it("renders a Search button", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const KeywordSearch = require("../KeywordSearch").default;
-    const html = renderToString(<KeywordSearch matchCount={0} totalFiltered={10} />);
-    expect(html).not.toContain("match");
+    const html = renderToString(<KeywordSearch />);
+    expect(html).toContain('aria-label="Search"');
   });
 
-  it("shows no-match message when keyword is active and matchCount is 0", () => {
-    mockUseFilterStore.mockReturnValue({ ...defaultFilterState, keyword: "foobar" });
-    mockUseFileStore.mockReturnValue({
-      loadedFile: { name: "app.log", size: 100, extension: "log", content: "line" },
-    });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const KeywordSearch = require("../KeywordSearch").default;
-    const html = renderToString(<KeywordSearch matchCount={0} totalFiltered={5} />);
-    expect(html).toContain("No matches found");
-  });
-
-  it("shows match count when keyword is active and matches exist", () => {
-    mockUseFilterStore.mockReturnValue({ ...defaultFilterState, keyword: "error" });
-    mockUseFileStore.mockReturnValue({
-      loadedFile: { name: "app.log", size: 100, extension: "log", content: "error line" },
-    });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const KeywordSearch = require("../KeywordSearch").default;
-    const html = renderToString(<KeywordSearch matchCount={3} totalFiltered={10} />);
-    expect(html).toContain("3");
-    expect(html).toContain("10");
-    expect(html).toContain("match");
-  });
-
-  it("shows clear button when input has a value", () => {
+  it("shows clear button when input has a value (keyword initialises inputValue)", () => {
     mockUseFilterStore.mockReturnValue({ ...defaultFilterState, keyword: "error" });
     mockUseFileStore.mockReturnValue({ loadedFile: null });
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -89,7 +65,7 @@ describe("KeywordSearch", () => {
     expect(html).not.toContain('aria-label="Clear search"');
   });
 
-  // --- New toggle button tests ---
+  // --- Toggle button tests ---
 
   it('renders the case sensitivity toggle button with aria-label "Toggle case sensitivity"', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -110,7 +86,6 @@ describe("KeywordSearch", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const KeywordSearch = require("../KeywordSearch").default;
     const html = renderToString(<KeywordSearch />);
-    // aria-pressed="false" on the Aa button
     expect(html).toContain('aria-label="Toggle case sensitivity" aria-pressed="false"');
   });
 
@@ -138,6 +113,24 @@ describe("KeywordSearch", () => {
     expect(html).toContain('aria-label="Toggle regex mode" aria-pressed="true"');
   });
 
+  // --- Regex error only shows after submit, not on initial render ---
+
+  it("does not show regex error on initial render even when keyword is an invalid pattern", () => {
+    // The regex error only fires when the user explicitly submits (Enter/Search button).
+    // On initial render the regexError state is null, so no error is shown.
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "[unclosed",
+      isRegexMode: true,
+    });
+    mockUseFileStore.mockReturnValue({ loadedFile: null });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const KeywordSearch = require("../KeywordSearch").default;
+    const html = renderToString(<KeywordSearch />);
+    expect(html).not.toContain("Invalid regex");
+    expect(html).not.toContain('role="alert"');
+  });
+
   it("does not show regex error when regex mode is inactive", () => {
     mockUseFilterStore.mockReturnValue({
       ...defaultFilterState,
@@ -151,34 +144,7 @@ describe("KeywordSearch", () => {
     expect(html).not.toContain("Invalid regex");
   });
 
-  it("shows regex error with role=alert when regex mode is active and pattern is invalid", () => {
-    mockUseFilterStore.mockReturnValue({
-      ...defaultFilterState,
-      keyword: "[unclosed",
-      isRegexMode: true,
-    });
-    mockUseFileStore.mockReturnValue({ loadedFile: null });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const KeywordSearch = require("../KeywordSearch").default;
-    const html = renderToString(<KeywordSearch />);
-    expect(html).toContain("Invalid regex");
-    expect(html).toContain('role="alert"');
-  });
-
-  it("sets aria-invalid on the input when regex mode is active and pattern is invalid", () => {
-    mockUseFilterStore.mockReturnValue({
-      ...defaultFilterState,
-      keyword: "[unclosed",
-      isRegexMode: true,
-    });
-    mockUseFileStore.mockReturnValue({ loadedFile: null });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const KeywordSearch = require("../KeywordSearch").default;
-    const html = renderToString(<KeywordSearch />);
-    expect(html).toContain('aria-invalid="true"');
-  });
-
-  it("does not show regex error when regex mode is active and pattern is valid", () => {
+  it("does not show regex error on render when regex mode is active and pattern is valid", () => {
     mockUseFilterStore.mockReturnValue({
       ...defaultFilterState,
       keyword: "erro.*critical",

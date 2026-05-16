@@ -1,18 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import styles from "./KeywordSearch.module.css";
 import { useFilterStore } from "@/app/stores/filterStore";
 import { useFileStore } from "@/app/stores/fileStore";
 
 interface KeywordSearchProps {
-  matchCount?: number;
-  totalFiltered?: number;
+  onSearch?: (keyword: string) => void;
 }
 
 /**
- * Compute a regex error message for the current input value when regex mode is
- * active, or null when the pattern is valid (or mode is inactive).
+ * Validate a regex pattern and return an error message, or null when valid.
  */
 function getRegexError(value: string, isRegexMode: boolean): string | null {
   if (!isRegexMode || value === "") return null;
@@ -24,30 +22,46 @@ function getRegexError(value: string, isRegexMode: boolean): string | null {
   }
 }
 
-export default function KeywordSearch({ matchCount, totalFiltered }: KeywordSearchProps) {
+export default function KeywordSearch({ onSearch }: KeywordSearchProps) {
   const { keyword, setKeyword, isRegexMode, setIsRegexMode, isCaseSensitive, setIsCaseSensitive } =
     useFilterStore();
   const { loadedFile } = useFileStore();
   const [inputValue, setInputValue] = useState(keyword);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Regex error is only shown after a submit attempt, not on every keystroke.
+  const [regexError, setRegexError] = useState<string | null>(null);
 
-  // Regex error is derived locally — no need to persist it in the store.
-  const regexError = getRegexError(inputValue, isRegexMode);
   const isRegexInvalid = regexError !== null;
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setInputValue(value);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => setKeyword(value), 150);
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    // Clear any prior submit-time error when the user edits the input.
+    setRegexError(null);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const error = getRegexError(inputValue, isRegexMode);
+    if (error !== null) {
+      setRegexError(error);
+      return;
+    }
+    setRegexError(null);
+    setKeyword(inputValue);
+    onSearch?.(inputValue);
+  }, [inputValue, isRegexMode, setKeyword, onSearch]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        handleSubmit();
+      }
     },
-    [setKeyword],
+    [handleSubmit],
   );
 
   const handleClear = useCallback(() => {
     setInputValue("");
     setKeyword("");
+    setRegexError(null);
     // Toggle states (isRegexMode, isCaseSensitive) are intentionally preserved on clear.
   }, [setKeyword]);
 
@@ -56,16 +70,11 @@ export default function KeywordSearch({ matchCount, totalFiltered }: KeywordSear
   }, [isCaseSensitive, setIsCaseSensitive]);
 
   const handleToggleRegex = useCallback(() => {
+    // Clear any regex error when toggling mode — in non-regex mode the error is meaningless.
+    setRegexError(null);
     setIsRegexMode(!isRegexMode);
   }, [isRegexMode, setIsRegexMode]);
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  const showCount = keyword.trim() !== "" && loadedFile !== null;
   const isDisabled = loadedFile === null;
 
   return (
@@ -87,12 +96,13 @@ export default function KeywordSearch({ matchCount, totalFiltered }: KeywordSear
           placeholder="Search logs…"
           value={inputValue}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           aria-label="Search logs by keyword"
           aria-invalid={isRegexInvalid}
           spellCheck={false}
           disabled={isDisabled}
         />
-        {/* Tab order: Aa → .* → ✕ (left-to-right visual order, natural DOM order) */}
+        {/* Tab order: Aa → .* → Search → ✕ (left-to-right visual order) */}
         <div className={styles.toggleGroup}>
           <button
             type="button"
@@ -114,6 +124,15 @@ export default function KeywordSearch({ matchCount, totalFiltered }: KeywordSear
           >
             .*
           </button>
+          <button
+            type="button"
+            className={styles.searchBtn}
+            onClick={handleSubmit}
+            aria-label="Search"
+            disabled={isDisabled}
+          >
+            Search
+          </button>
         </div>
         {inputValue && (
           <button
@@ -131,15 +150,6 @@ export default function KeywordSearch({ matchCount, totalFiltered }: KeywordSear
         <p className={styles.regexError} role="alert" aria-live="assertive">
           ⚠ Invalid regex: {regexError}
         </p>
-      )}
-      {showCount && (
-        <span
-          className={`${styles.resultCount} ${(matchCount ?? 0) > 0 ? styles.hasResults : ""}`}
-        >
-          {matchCount === 0
-            ? "No matches found"
-            : `${matchCount?.toLocaleString()} of ${totalFiltered?.toLocaleString()} lines match`}
-        </span>
       )}
     </div>
   );
