@@ -23,7 +23,8 @@
 .input {
   width: 100%;
   height: 32px;
-  padding: 0 32px 0 32px;
+  /* right padding: two 28px toggles + 56px Search button + clear button + gaps ≈ 160px */
+  padding: 0 160px 0 32px;
   border: 1px solid var(--panel-border, #e5e5e5);
   border-radius: 6px;
   background: var(--background);
@@ -64,13 +65,103 @@
   color: var(--foreground);
 }
 
-.resultCount {
-  font-size: 12px;
-  color: var(--text-muted, #999);
+/* Toggle button group: absolutely positioned inside .inputRow, left of clear button */
+.toggleGroup {
+  position: absolute;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.resultCount.hasResults {
-  color: var(--text-secondary, #666);
+/* Base toggle button style — 28×28px compact icon-button */
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--text-muted, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #999);
+  font-size: 11px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  line-height: 1;
+}
+
+.toggleBtn:hover {
+  background: var(--panel-bg, #f0f0f0);
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.toggleBtn:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+
+/* Active (pressed) state: filled background with contrasting text */
+.toggleBtnActive {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.toggleBtnActive:hover {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+  opacity: 0.85;
+}
+
+/* Search submit button — sits inside the toggleGroup */
+.searchBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--text-muted, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #999);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.searchBtn:hover {
+  background: var(--panel-bg, #f0f0f0);
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.searchBtn:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+
+.searchBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Applied to .input when isRegexMode is true and the pattern is syntactically invalid */
+.inputError {
+  border-color: #d97706 !important;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+/* Error row beneath .inputRow — amber/warning colour, screen-reader announced */
+.regexError {
+  font-size: 12px;
+  color: #d97706;
+  margin: 0;
 }
 
 @media (prefers-color-scheme: dark) {

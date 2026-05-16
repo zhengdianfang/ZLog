@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import styles from "./LogViewer.module.css";
 import { useFileStore } from "@/app/stores/fileStore";
 import { useFilterStore } from "@/app/stores/filterStore";
 import { parseLineTimestamp } from "@/app/lib/timestampParser";
+import { buildSearchRegex } from "@/app/lib/searchUtils";
 import KeywordSearch from "@/app/_components/KeywordSearch/KeywordSearch";
+import LogViewerTabBar from "@/app/_components/LogViewer/LogViewerTabBar";
+import SearchResultsPane from "@/app/_components/LogViewer/SearchResultsPane";
+import type { SearchTab, ActiveTabId } from "@/app/lib/searchTypes";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -13,24 +17,16 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function highlightKeyword(text: string, keyword: string): React.ReactNode {
-  if (!keyword) return text;
-  const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
-  const parts = text.split(regex);
-  return parts.map((part, i) =>
-    regex.test(part) ? (
-      <mark key={i} className={styles.highlight}>
-        {part}
-      </mark>
-    ) : (
-      part
-    )
-  );
-}
-
 export default function LogViewer() {
   const { loadedFile, closeFile } = useFileStore();
-  const { startTime, endTime, keyword } = useFilterStore();
+  const { startTime, endTime, isRegexMode, isCaseSensitive, setSubmittedKeyword } =
+    useFilterStore();
+
+  const [searchTabs, setSearchTabs] = useState<SearchTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<ActiveTabId>("log");
+
+  /** Ref to the Log tab button — focus is moved here after a search tab is closed. */
+  const logTabRef = useRef<HTMLButtonElement | null>(null);
 
   const lines = useMemo(() => {
     if (!loadedFile?.content) return [];
@@ -39,7 +35,6 @@ export default function LogViewer() {
   }, [loadedFile]);
 
   const isTimeFilterActive = startTime !== "" || endTime !== "";
-  const isKeywordActive = keyword.trim() !== "";
 
   const timeFilteredLines = useMemo(() => {
     if (!isTimeFilterActive) {
@@ -63,19 +58,70 @@ export default function LogViewer() {
       });
   }, [lines, isTimeFilterActive, startTime, endTime]);
 
-  const displayLines = useMemo(() => {
-    if (!isKeywordActive) return timeFilteredLines;
-    const lower = keyword.toLowerCase();
-    return timeFilteredLines.filter(({ line }) => line.toLowerCase().includes(lower));
-  }, [timeFilteredLines, isKeywordActive, keyword]);
+  const handleSearch = useCallback(
+    (keyword: string) => {
+      // Keep the store's submittedKeyword in sync for any store-reading components.
+      setSubmittedKeyword(keyword);
+
+      // Snapshot mode flags at search time so each tab is self-contained.
+      const snapshotRegexMode = isRegexMode;
+      const snapshotCaseSensitive = isCaseSensitive;
+
+      const regex = buildSearchRegex(keyword, snapshotRegexMode, snapshotCaseSensitive);
+      const matchedLines =
+        regex !== null
+          ? timeFilteredLines.filter(({ line }) => regex.test(line))
+          : timeFilteredLines;
+
+      const newTab: SearchTab = {
+        id: crypto.randomUUID(),
+        label: keyword,
+        lines: matchedLines,
+        isRegexMode: snapshotRegexMode,
+        isCaseSensitive: snapshotCaseSensitive,
+      };
+
+      setSearchTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    [setSubmittedKeyword, isRegexMode, isCaseSensitive, timeFilteredLines],
+  );
+
+  const handleCloseTab = useCallback(
+    (id: string) => {
+      setSearchTabs((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        const next = prev.filter((t) => t.id !== id);
+
+        // Focus management: if the closed tab was active, move to nearest-left sibling
+        // or fall back to the Log tab.
+        setActiveTabId((current) => {
+          if (current !== id) return current;
+          if (idx > 0) return next[idx - 1].id;
+          return "log";
+        });
+
+        return next;
+      });
+
+      // Move DOM focus to the Log tab button when the closed tab was the active one.
+      // We defer slightly so state has settled before the element is queried.
+      requestAnimationFrame(() => {
+        if (activeTabId === id) {
+          logTabRef.current?.focus();
+        }
+      });
+    },
+    [activeTabId],
+  );
 
   if (!loadedFile) return null;
 
-  const isFilterActive = isTimeFilterActive || isKeywordActive;
   const lineNumWidth = `${String(lines.length).length}ch`;
+  const emptyDueToTime = isTimeFilterActive && timeFilteredLines.length === 0;
 
-  const emptyDueToKeyword = isKeywordActive && displayLines.length === 0;
-  const emptyDueToTime = !isKeywordActive && isTimeFilterActive && timeFilteredLines.length === 0;
+  // Find the currently active search tab (null when log tab is active).
+  const activeSearchTab = searchTabs.find((t) => t.id === activeTabId) ?? null;
 
   return (
     <div className={styles.container}>
@@ -85,8 +131,8 @@ export default function LogViewer() {
           <span className={styles.fileMeta}>
             {formatFileSize(loadedFile.size)} · .{loadedFile.extension}
             {lines.length > 0 && ` · ${lines.length.toLocaleString()} lines`}
-            {isFilterActive &&
-              ` · ${displayLines.length.toLocaleString()} matched`}
+            {isTimeFilterActive &&
+              ` · ${timeFilteredLines.length.toLocaleString()} matched`}
           </span>
         </div>
         <button
@@ -99,22 +145,27 @@ export default function LogViewer() {
         </button>
       </header>
       <div className={styles.searchBar}>
-        <KeywordSearch
-          matchCount={isKeywordActive ? displayLines.length : undefined}
-          totalFiltered={isKeywordActive ? timeFilteredLines.length : undefined}
-        />
+        <KeywordSearch onSearch={handleSearch} />
       </div>
-      <div className={styles.content}>
-        {loadedFile.content !== null ? (
+      <LogViewerTabBar
+        searchTabs={searchTabs}
+        activeTabId={activeTabId}
+        onTabChange={setActiveTabId}
+        onCloseTab={handleCloseTab}
+        logTabRef={logTabRef}
+      />
+      <div
+        className={styles.content}
+        role="tabpanel"
+        id="panel-log"
+        tabIndex={activeTabId === "log" ? 0 : -1}
+        aria-hidden={activeTabId !== "log"}
+      >
+        {activeSearchTab !== null ? (
+          <SearchResultsPane tab={activeSearchTab} lineNumWidth={lineNumWidth} />
+        ) : loadedFile.content !== null ? (
           <>
-            {emptyDueToKeyword ? (
-              <div className={styles.emptyFilter}>
-                <p>No log entries match &ldquo;{keyword}&rdquo;.</p>
-                <p className={styles.emptyFilterHint}>
-                  Try a different keyword or clear the search.
-                </p>
-              </div>
-            ) : emptyDueToTime ? (
+            {emptyDueToTime ? (
               <div className={styles.emptyFilter}>
                 <p>No log entries match the selected time range.</p>
                 <p className={styles.emptyFilterHint}>
@@ -123,7 +174,7 @@ export default function LogViewer() {
               </div>
             ) : (
               <div className={styles.logBody}>
-                {displayLines.map(({ line, originalIndex }) => (
+                {timeFilteredLines.map(({ line, originalIndex }) => (
                   <div key={originalIndex} className={styles.logLine}>
                     <span
                       className={styles.lineNumber}
@@ -131,9 +182,7 @@ export default function LogViewer() {
                     >
                       {originalIndex + 1}
                     </span>
-                    <span className={styles.lineContent}>
-                      {isKeywordActive ? highlightKeyword(line, keyword) : line}
-                    </span>
+                    <span className={styles.lineContent}>{line}</span>
                   </div>
                 ))}
               </div>

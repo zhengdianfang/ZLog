@@ -1,0 +1,15 @@
+2024-01-15 08:00:01.123 I MainActivity: Application started successfully
+2024-01-15 08:00:02.456 D NetworkManager: Connecting to server at 192.168.1.1
+2024-01-15 08:00:03.789 I SessionManager: User session initialized
+2024-01-15 08:00:04.001 W MemoryMonitor: Memory usage at 65% threshold
+2024-01-15 08:00:05.234 E CrashReporter: crash detected in render thread
+2024-01-15 08:00:06.567 E ANRMonitor: ANR detected - application not responding for 5000ms
+2024-01-15 08:00:07.890 I RecoveryManager: Attempting automatic recovery
+2024-01-15 08:00:08.012 D DatabaseHelper: error writing to local cache
+2024-01-15 08:00:09.345 E ErrorHandler: Error during network request timeout
+2024-01-15 08:00:10.678 W RetryManager: errror in retry logic, fallback activated
+2024-01-15 08:00:11.901 I BackgroundService: Scheduled task completed
+2024-01-15 08:00:12.234 D CacheManager: Cache invalidated due to version mismatch
+2024-01-15 08:00:13.567 I LogUploader: Uploading diagnostic bundle
+2024-01-15 08:00:14.890 W BatteryMonitor: Battery level below 20%
+2024-01-15 08:00:15.123 I AppLifecycle: Application moving to background

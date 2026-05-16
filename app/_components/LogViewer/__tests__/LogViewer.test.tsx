@@ -4,13 +4,30 @@
 import { renderToString } from "react-dom/server";
 
 jest.mock("@/app/stores/fileStore");
+jest.mock("@/app/stores/filterStore");
 
 import { useFileStore } from "@/app/stores/fileStore";
+import { useFilterStore } from "@/app/stores/filterStore";
 
 const mockUseFileStore = useFileStore as unknown as jest.Mock;
+const mockUseFilterStore = useFilterStore as unknown as jest.Mock;
+
+const defaultFilterState = {
+  startTime: "",
+  endTime: "",
+  keyword: "",
+  submittedKeyword: "",
+  isRegexMode: false,
+  isCaseSensitive: false,
+  setKeyword: jest.fn(),
+  setSubmittedKeyword: jest.fn(),
+  setIsRegexMode: jest.fn(),
+  setIsCaseSensitive: jest.fn(),
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseFilterStore.mockReturnValue(defaultFilterState);
 });
 
 describe("LogViewer", () => {
@@ -157,5 +174,67 @@ describe("LogViewer", () => {
     const LogViewer = require("../LogViewer").default;
     const html = renderToString(<LogViewer />);
     expect(html).toContain("  indented line\ttabbed");
+  });
+
+  // --- Tab bar tests ---
+
+  it("renders the Log tab when a file is loaded", () => {
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "line one",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    expect(html).toContain("Log");
+  });
+
+  it("does not render the Search Results tab before a search is run", () => {
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "line one",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    expect(html).not.toContain("Search Results");
+  });
+
+  // --- Log tab shows all time-filtered lines (no keyword inline filtering) ---
+
+  it("shows all lines on the Log tab regardless of keyword store value", () => {
+    mockUseFilterStore.mockReturnValue({
+      ...defaultFilterState,
+      keyword: "error",
+      submittedKeyword: "error",
+      isRegexMode: false,
+      isCaseSensitive: false,
+    });
+    mockUseFileStore.mockReturnValue({
+      loadedFile: {
+        name: "app.log",
+        size: 100,
+        extension: "log",
+        content: "ERROR: crash\nINFO: all good\nError: timeout",
+      },
+      closeFile: jest.fn(),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LogViewer = require("../LogViewer").default;
+    const html = renderToString(<LogViewer />);
+    // Log tab shows all lines — no inline keyword filtering.
+    expect(html).toContain("ERROR: crash");
+    expect(html).toContain("INFO: all good");
+    expect(html).toContain("Error: timeout");
   });
 });
