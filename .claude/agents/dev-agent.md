@@ -64,6 +64,8 @@ Extract: ASIS stories (what to build), acceptance criteria (definition of done),
 
 ### Step 2 — Move Card to DOING
 
+Always move the card to DOING before writing any code — whether this is a new card or an existing card re-entering development due to new requirements.
+
 Find the DOING list ID, then move the card:
 
 ```bash
