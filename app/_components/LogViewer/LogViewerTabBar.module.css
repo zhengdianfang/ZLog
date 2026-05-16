@@ -1,0 +1,122 @@
+.tabBar {
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--panel-border, #e5e5e5);
+  flex-shrink: 0;
+  background: var(--background);
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Inner flex row that grows as tabs are added */
+.tabList {
+  display: flex;
+  min-width: max-content;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.tab {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted, #999);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+.tabActive {
+  color: var(--foreground);
+  border-bottom-color: var(--foreground);
+  font-weight: 500;
+}
+
+/* Log tab: sticky to the left so it stays visible when tab bar scrolls */
+.logTab {
+  position: sticky;
+  left: 0;
+  background: var(--background);
+  z-index: 1;
+}
+
+/* Wrapper for each search tab label button + its close button */
+.searchTabWrapper {
+  display: flex;
+  align-items: center;
+}
+
+/* Truncate long labels */
+.tabLabel {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Result count badge inline after label */
+.tabCount {
+  font-size: 11px;
+  color: var(--text-muted, #999);
+  margin-left: 4px;
+}
+
+.closeTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  border: none;
+  background: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted, #999);
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+
+.closeTab:hover {
+  background: var(--panel-bg, #f0f0f0);
+  color: var(--foreground);
+}
+
+.closeTab:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tabBar {
+    --panel-border: #222;
+  }
+
+  .closeTab:hover {
+    --panel-bg: #1a1a1a;
+  }
+
+  .logTab {
+    background: var(--background);
+  }
+}
