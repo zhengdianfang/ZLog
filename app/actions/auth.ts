@@ -3,6 +3,7 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -190,4 +191,16 @@ export async function resetPassword(
     .where(eq(users.email, email));
 
   redirect("/login");
+}
+
+export type LogoutResult = { success: true } | { success: false; errors: { general: string } };
+
+export async function logoutUser(): Promise<LogoutResult> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("session");
+    return { success: true };
+  } catch {
+    return { success: false, errors: { general: "Logout failed" } };
+  }
 }
