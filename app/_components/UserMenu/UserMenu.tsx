@@ -5,15 +5,11 @@ import { useRouter } from "next/navigation";
 import { logoutUser } from "@/app/actions/auth";
 import { useAuthStore } from "@/app/stores/authStore";
 import type { AuthUser } from "@/app/stores/authStore";
+import { getInitials } from "@/app/lib/userUtils";
 import styles from "./UserMenu.module.css";
 
 interface UserMenuProps {
   user: AuthUser;
-}
-
-function getInitials(user: AuthUser): string {
-  const source = user.displayName ?? user.email;
-  return source.charAt(0).toUpperCase();
 }
 
 export function UserMenu({ user }: UserMenuProps) {
