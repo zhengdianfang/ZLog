@@ -1,20 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { loginUser } from "@/app/actions/auth";
 import type { LoginResult } from "@/app/actions/auth";
+import { useAuthStore } from "@/app/stores/authStore";
 import styles from "./LoginForm.module.css";
 
 const initialState: LoginResult | null = null;
 
 export function LoginForm() {
+  const router = useRouter();
+  const setUser = useAuthStore((s) => s.setUser);
+
   const [state, formAction, isPending] = useActionState(
     async (_prev: LoginResult | null, formData: FormData) => {
       return loginUser(formData);
     },
     initialState
   );
+
+  useEffect(() => {
+    if (state?.success === true) {
+      setUser(state.user);
+      router.push("/");
+    }
+  }, [state, setUser, router]);
+
+  const errors = state?.success === false ? state.errors : null;
 
   return (
     <form className={styles.form} action={formAction}>
@@ -31,9 +45,9 @@ export function LoginForm() {
           className={styles.input}
           aria-describedby="email-error"
         />
-        {state?.errors.email && (
+        {errors?.email && (
           <span id="email-error" className={styles.error} role="alert">
-            {state.errors.email[0]}
+            {errors.email[0]}
           </span>
         )}
       </div>
@@ -56,16 +70,16 @@ export function LoginForm() {
           className={styles.input}
           aria-describedby="password-error"
         />
-        {state?.errors.password && (
+        {errors?.password && (
           <span id="password-error" className={styles.error} role="alert">
-            {state.errors.password[0]}
+            {errors.password[0]}
           </span>
         )}
       </div>
 
-      {state?.errors.general && (
+      {errors?.general && (
         <p className={styles.error} role="alert">
-          {state.errors.general}
+          {errors.general}
         </p>
       )}
 
