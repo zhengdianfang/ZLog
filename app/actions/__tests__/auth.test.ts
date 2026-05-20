@@ -224,12 +224,16 @@ describe("loginUser", () => {
   });
 
   describe("successful login", () => {
-    it("redirects to homepage on valid credentials", async () => {
-      await loginUser(
+    it("returns success with user data on valid credentials", async () => {
+      const result = await loginUser(
         makeFormData({ email: "user@example.com", password: "secret123" })
       );
 
-      expect(redirect).toHaveBeenCalledWith("/");
+      expect(result).toEqual({
+        success: true,
+        user: { id: String(existingUser.id), email: "user@example.com" },
+      });
+      expect(redirect).not.toHaveBeenCalled();
     });
 
     it("normalizes email to lowercase before lookup", async () => {
