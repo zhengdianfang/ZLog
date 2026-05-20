@@ -11,7 +11,6 @@ import styles from "./UserMenu.module.css";
 interface UserMenuProps {
   user: AuthUser;
 }
-
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
