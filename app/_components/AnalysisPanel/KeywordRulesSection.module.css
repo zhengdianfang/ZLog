@@ -1,0 +1,45 @@
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #999);
+  margin: 0;
+}
+
+.addButton {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 5px;
+  border: 1px solid var(--panel-border, #e5e5e5);
+  background: var(--modal-bg, #fff);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground, #111);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.addButton:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.addButton:focus-visible {
+  outline: 2px solid var(--foreground, #111);
+  outline-offset: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .addButton {
+    --panel-border: #333;
+    --modal-bg: #1a1a1a;
+    --hover-bg: #2a2a2a;
+  }
+}
