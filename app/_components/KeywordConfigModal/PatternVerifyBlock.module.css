@@ -1,0 +1,127 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.demoInput {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--modal-border, #e5e5e5);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: "Menlo", "Monaco", "Consolas", monospace;
+  color: var(--foreground, #111);
+  background: var(--modal-bg, #fff);
+  transition: border-color 0.1s;
+  min-width: 0;
+}
+
+.demoInput:focus {
+  outline: none;
+  border-color: var(--foreground, #111);
+}
+
+.verifyBtn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid var(--modal-border, #e5e5e5);
+  background: var(--modal-bg, #fff);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground, #111);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+
+.verifyBtn:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.verifyBtn:focus-visible {
+  outline: 2px solid var(--foreground, #111);
+  outline-offset: 1px;
+}
+
+.result {
+  min-height: 24px;
+}
+
+.resultPrompt {
+  font-size: 13px;
+  color: var(--text-secondary, #777);
+  margin: 0;
+}
+
+.resultNoMatch {
+  font-size: 13px;
+  color: #b45309;
+  margin: 0;
+}
+
+.resultSuccess {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resultSuccessLabel {
+  font-size: 13px;
+  color: #1a7a3e;
+  font-weight: 500;
+  margin: 0;
+}
+
+.groupTable {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: "Menlo", "Monaco", "Consolas", monospace;
+  width: 100%;
+}
+
+.groupTableTh {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--modal-border, #e5e5e5);
+  font-weight: 600;
+  color: var(--text-secondary, #555);
+  background: var(--table-head-bg, #f5f5f5);
+}
+
+.groupTableTd {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--modal-border, #e5e5e5);
+  color: var(--foreground, #111);
+}
+
+@media (prefers-color-scheme: dark) {
+  .demoInput {
+    --modal-border: #333;
+    --modal-bg: #1a1a1a;
+  }
+
+  .verifyBtn {
+    --modal-border: #333;
+    --modal-bg: #1a1a1a;
+    --hover-bg: #2a2a2a;
+  }
+
+  .groupTableTh {
+    --table-head-bg: #222;
+    --modal-border: #333;
+    --text-secondary: #888;
+  }
+
+  .groupTableTd {
+    --modal-border: #333;
+  }
+}

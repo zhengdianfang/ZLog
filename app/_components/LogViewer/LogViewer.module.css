@@ -105,6 +105,7 @@
   background: var(--line-hover, rgba(0, 0, 0, 0.03));
 }
 
+
 .lineNumber {
   flex-shrink: 0;
   padding-right: 16px;

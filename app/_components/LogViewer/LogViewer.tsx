@@ -1,15 +1,40 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import styles from "./LogViewer.module.css";
 import { useFileStore } from "@/app/stores/fileStore";
 import { useFilterStore } from "@/app/stores/filterStore";
+import { useKeywordStore } from "@/app/stores/keywordStore";
+import { KEYWORD_TYPE_COLORS } from "@/app/constants/keywordColors";
+import type { KeywordRule } from "@/app/types/keyword";
 import { parseLineTimestamp } from "@/app/lib/timestampParser";
 import { buildSearchRegex } from "@/app/lib/searchUtils";
 import KeywordSearch from "@/app/_components/KeywordSearch/KeywordSearch";
 import LogViewerTabBar from "@/app/_components/LogViewer/LogViewerTabBar";
 import SearchResultsPane from "@/app/_components/LogViewer/SearchResultsPane";
 import type { SearchTab, ActiveTabId } from "@/app/lib/searchTypes";
+
+function parsePatternBody(pattern: string): string {
+  const trimmed = pattern.trim();
+  if (trimmed.startsWith("/") && trimmed.lastIndexOf("/") > 0) {
+    return trimmed.slice(1, trimmed.lastIndexOf("/"));
+  }
+  return trimmed;
+}
+
+function getLineTint(line: string, rules: KeywordRule[]): string | undefined {
+  for (const rule of rules) {
+    try {
+      const regex = new RegExp(parsePatternBody(rule.pattern));
+      if (regex.test(line)) {
+        return KEYWORD_TYPE_COLORS[rule.type].logTint;
+      }
+    } catch {
+      // Skip rules with invalid patterns
+    }
+  }
+  return undefined;
+}
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,12 +46,25 @@ export default function LogViewer() {
   const { loadedFile, closeFile } = useFileStore();
   const { startTime, endTime, isRegexMode, isCaseSensitive, setSubmittedKeyword } =
     useFilterStore();
+  const keywordRules = useKeywordStore((state) => state.rules);
+  const focusedLine = useKeywordStore((state) => state.focusedLine);
 
   const [searchTabs, setSearchTabs] = useState<SearchTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<ActiveTabId>("log");
 
   /** Ref to the Log tab button — focus is moved here after a search tab is closed. */
   const logTabRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (focusedLine === null) return;
+    const target = contentRef.current?.querySelector<HTMLElement>(
+      `[data-line-index="${focusedLine.index}"]`,
+    );
+    if (target) {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [focusedLine]);
 
   const lines = useMemo(() => {
     if (!loadedFile?.content) return [];
@@ -155,6 +193,7 @@ export default function LogViewer() {
         logTabRef={logTabRef}
       />
       <div
+        ref={contentRef}
         className={styles.content}
         role="tabpanel"
         id="panel-log"
@@ -174,17 +213,26 @@ export default function LogViewer() {
               </div>
             ) : (
               <div className={styles.logBody}>
-                {timeFilteredLines.map(({ line, originalIndex }) => (
-                  <div key={originalIndex} className={styles.logLine}>
-                    <span
-                      className={styles.lineNumber}
-                      style={{ minWidth: lineNumWidth }}
+                {timeFilteredLines.map(({ line, originalIndex }) => {
+                  const isFocused = focusedLine?.index === originalIndex;
+                  const bg = isFocused ? focusedLine!.bg : getLineTint(line, keywordRules);
+                  return (
+                    <div
+                      key={originalIndex}
+                      data-line-index={originalIndex}
+                      className={styles.logLine}
+                      style={bg ? { backgroundColor: bg } : undefined}
                     >
-                      {originalIndex + 1}
-                    </span>
-                    <span className={styles.lineContent}>{line}</span>
-                  </div>
-                ))}
+                      <span
+                        className={styles.lineNumber}
+                        style={{ minWidth: lineNumWidth }}
+                      >
+                        {originalIndex + 1}
+                      </span>
+                      <span className={styles.lineContent}>{line}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

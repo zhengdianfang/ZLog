@@ -1,5 +1,7 @@
 import styles from "./AnalysisPanel.module.css";
 import TimeRangeFilter from "@/app/_components/TimeRangeFilter/TimeRangeFilter";
+import { KeywordRulesSection } from "./KeywordRulesSection";
+import { KeywordMatchesSection } from "./KeywordMatchesSection";
 
 export default function AnalysisPanel() {
   return (
@@ -7,6 +9,14 @@ export default function AnalysisPanel() {
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Time Range</h3>
         <TimeRangeFilter />
+      </div>
+      <div className={styles.divider} />
+      <div className={styles.section}>
+        <KeywordRulesSection />
+      </div>
+      <div className={styles.divider} />
+      <div className={styles.section}>
+        <KeywordMatchesSection />
       </div>
       <div className={styles.divider} />
       <div className={styles.section}>

@@ -5,9 +5,13 @@ import { renderToString } from "react-dom/server";
 
 jest.mock("@/app/stores/fileStore");
 jest.mock("@/app/stores/filterStore");
+jest.mock("@/app/stores/keywordStore");
 
 import { useFileStore } from "@/app/stores/fileStore";
 import { useFilterStore } from "@/app/stores/filterStore";
+import { useKeywordStore } from "@/app/stores/keywordStore";
+
+const mockUseKeywordStore = useKeywordStore as unknown as jest.Mock;
 
 const mockUseFileStore = useFileStore as unknown as jest.Mock;
 const mockUseFilterStore = useFilterStore as unknown as jest.Mock;
@@ -28,6 +32,10 @@ const defaultFilterState = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseFilterStore.mockReturnValue(defaultFilterState);
+  // useKeywordStore is called with a selector function in the component.
+  mockUseKeywordStore.mockImplementation(
+    (selector: (state: { rules: unknown[] }) => unknown) => selector({ rules: [] }),
+  );
 });
 
 describe("LogViewer", () => {
