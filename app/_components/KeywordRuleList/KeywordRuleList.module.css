@@ -57,6 +57,33 @@
   min-width: 0;
 }
 
+.editBtn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted, #bbb);
+  border-radius: 4px;
+  transition: color 0.1s, background 0.1s;
+  line-height: 1;
+}
+
+.editBtn:hover {
+  color: #1a6fa8;
+  background: #e8f4fd;
+}
+
+.editBtn:focus-visible {
+  outline: 2px solid var(--foreground, #111);
+  outline-offset: 1px;
+}
+
 .deleteBtn {
   flex-shrink: 0;
   width: 20px;

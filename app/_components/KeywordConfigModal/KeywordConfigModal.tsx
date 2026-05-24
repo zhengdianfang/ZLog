@@ -16,6 +16,7 @@ interface KeywordConfigModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (rule: KeywordRule) => void;
+  initialRule?: KeywordRule;
 }
 
 function validatePatternSyntax(value: string): string | null {
@@ -34,12 +35,14 @@ function validatePatternSyntax(value: string): string | null {
 interface ModalFormProps {
   onClose: () => void;
   onSave: (rule: KeywordRule) => void;
+  initialRule?: KeywordRule;
 }
 
-function ModalForm({ onClose, onSave }: ModalFormProps) {
-  const [selectedType, setSelectedType] = useState<KeywordType | null>(null);
-  const [description, setDescription] = useState("");
-  const [pattern, setPattern] = useState("");
+function ModalForm({ onClose, onSave, initialRule }: ModalFormProps) {
+  const isEdit = initialRule !== undefined;
+  const [selectedType, setSelectedType] = useState<KeywordType | null>(initialRule?.type ?? null);
+  const [description, setDescription] = useState(initialRule?.description ?? "");
+  const [pattern, setPattern] = useState(initialRule?.pattern ?? "");
   const [patternError, setPatternError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -78,7 +81,7 @@ function ModalForm({ onClose, onSave }: ModalFormProps) {
     }
 
     onSave({
-      id: crypto.randomUUID(),
+      id: isEdit ? initialRule.id : crypto.randomUUID(),
       type: selectedType as KeywordType,
       description: description.trim(),
       pattern: pattern.trim(),
@@ -166,14 +169,14 @@ function ModalForm({ onClose, onSave }: ModalFormProps) {
           className={styles.buttonSave}
           onClick={handleSave}
         >
-          Save Rule
+          {isEdit ? "Update Rule" : "Save Rule"}
         </button>
       </div>
     </>
   );
 }
 
-export function KeywordConfigModal({ open, onClose, onSave }: KeywordConfigModalProps) {
+export function KeywordConfigModal({ open, onClose, onSave, initialRule }: KeywordConfigModalProps) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -201,7 +204,7 @@ export function KeywordConfigModal({ open, onClose, onSave }: KeywordConfigModal
       <div className={styles.modal}>
         <div className={styles.header}>
           <h2 id="keyword-config-modal-title" className={styles.title}>
-            Add Keyword Rule
+            {initialRule ? "Edit Keyword Rule" : "Add Keyword Rule"}
           </h2>
           <button
             type="button"
@@ -212,7 +215,7 @@ export function KeywordConfigModal({ open, onClose, onSave }: KeywordConfigModal
             ×
           </button>
         </div>
-        <ModalForm key={String(open)} onClose={onClose} onSave={onSave} />
+        <ModalForm key={initialRule?.id ?? "new"} onClose={onClose} onSave={onSave} initialRule={initialRule} />
       </div>
     </div>
   );

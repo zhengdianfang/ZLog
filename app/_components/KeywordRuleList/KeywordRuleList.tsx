@@ -2,9 +2,14 @@
 
 import { useKeywordStore } from "@/app/stores/keywordStore";
 import { KEYWORD_TYPE_COLORS } from "@/app/constants/keywordColors";
+import type { KeywordRule } from "@/app/types/keyword";
 import styles from "./KeywordRuleList.module.css";
 
-export function KeywordRuleList() {
+interface KeywordRuleListProps {
+  onEdit: (rule: KeywordRule) => void;
+}
+
+export function KeywordRuleList({ onEdit }: KeywordRuleListProps) {
   const { rules, removeRule } = useKeywordStore();
 
   if (rules.length === 0) {
@@ -31,6 +36,14 @@ export function KeywordRuleList() {
             <span className={styles.pattern} title={rule.pattern}>
               {rule.pattern}
             </span>
+            <button
+              type="button"
+              className={styles.editBtn}
+              onClick={() => onEdit(rule)}
+              aria-label={`Edit rule: ${rule.description}`}
+            >
+              ✎
+            </button>
             <button
               type="button"
               className={styles.deleteBtn}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import styles from "./LogViewer.module.css";
 import { useFileStore } from "@/app/stores/fileStore";
 import { useFilterStore } from "@/app/stores/filterStore";
@@ -47,12 +47,24 @@ export default function LogViewer() {
   const { startTime, endTime, isRegexMode, isCaseSensitive, setSubmittedKeyword } =
     useFilterStore();
   const keywordRules = useKeywordStore((state) => state.rules);
+  const focusedLine = useKeywordStore((state) => state.focusedLine);
 
   const [searchTabs, setSearchTabs] = useState<SearchTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<ActiveTabId>("log");
 
   /** Ref to the Log tab button — focus is moved here after a search tab is closed. */
   const logTabRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (focusedLine === null) return;
+    const target = contentRef.current?.querySelector<HTMLElement>(
+      `[data-line-index="${focusedLine.index}"]`,
+    );
+    if (target) {
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [focusedLine]);
 
   const lines = useMemo(() => {
     if (!loadedFile?.content) return [];
@@ -181,6 +193,7 @@ export default function LogViewer() {
         logTabRef={logTabRef}
       />
       <div
+        ref={contentRef}
         className={styles.content}
         role="tabpanel"
         id="panel-log"
@@ -201,12 +214,14 @@ export default function LogViewer() {
             ) : (
               <div className={styles.logBody}>
                 {timeFilteredLines.map(({ line, originalIndex }) => {
-                  const tint = getLineTint(line, keywordRules);
+                  const isFocused = focusedLine?.index === originalIndex;
+                  const bg = isFocused ? focusedLine!.bg : getLineTint(line, keywordRules);
                   return (
                     <div
                       key={originalIndex}
+                      data-line-index={originalIndex}
                       className={styles.logLine}
-                      style={tint ? { backgroundColor: tint } : undefined}
+                      style={bg ? { backgroundColor: bg } : undefined}
                     >
                       <span
                         className={styles.lineNumber}
