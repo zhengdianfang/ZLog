@@ -66,8 +66,26 @@
 }
 
 .searchBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   padding: 8px 16px;
+  gap: 0;
   border-bottom: 1px solid var(--panel-border, #e5e5e5);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.searchKeyword {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--panel-border, #e5e5e5);
+  margin: 4px 12px;
   flex-shrink: 0;
 }
 

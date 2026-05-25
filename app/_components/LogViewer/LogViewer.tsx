@@ -10,6 +10,7 @@ import type { KeywordRule } from "@/app/types/keyword";
 import { parseLineTimestamp } from "@/app/lib/timestampParser";
 import { buildSearchRegex } from "@/app/lib/searchUtils";
 import KeywordSearch from "@/app/_components/KeywordSearch/KeywordSearch";
+import TimeRangeFilter from "@/app/_components/TimeRangeFilter/TimeRangeFilter";
 import LogViewerTabBar from "@/app/_components/LogViewer/LogViewerTabBar";
 import SearchResultsPane from "@/app/_components/LogViewer/SearchResultsPane";
 import type { SearchTab, ActiveTabId } from "@/app/lib/searchTypes";
@@ -183,7 +184,11 @@ export default function LogViewer() {
         </button>
       </header>
       <div className={styles.searchBar}>
-        <KeywordSearch onSearch={handleSearch} />
+        <div className={styles.searchKeyword}>
+          <KeywordSearch onSearch={handleSearch} />
+        </div>
+        <div className={styles.searchDivider} aria-hidden="true" />
+        <TimeRangeFilter />
       </div>
       <LogViewerTabBar
         searchTabs={searchTabs}
