@@ -11,15 +11,28 @@ interface SearchResultsPaneProps {
 }
 
 export default function SearchResultsPane({ tab, lineNumWidth }: SearchResultsPaneProps) {
-  const searchRegex = buildSearchRegex(tab.label, tab.isRegexMode, tab.isCaseSensitive);
+  const searchRegex =
+    tab.kind === "search"
+      ? buildSearchRegex(tab.label, tab.isRegexMode, tab.isCaseSensitive)
+      : null;
 
-  const resultsHeader = (
-    <div className={styles.resultsHeader} aria-live="polite">
-      Results for: <span className={styles.resultsQuery}>&ldquo;{tab.label}&rdquo;</span>
-      &nbsp;&middot;&nbsp;
-      <span className={styles.resultsCount}>{tab.lines.length.toLocaleString()}</span> lines matched
-    </div>
-  );
+  const resultsHeader =
+    tab.kind === "timeFilter" ? (
+      <div className={styles.resultsHeader} aria-live="polite">
+        <span className={styles.resultsQuery}>{tab.label}</span>
+        &nbsp;&middot;&nbsp;
+        <span className={styles.resultsCount}>{tab.lines.length.toLocaleString()}</span>{" "}
+        lines matched
+      </div>
+    ) : (
+      <div className={styles.resultsHeader} aria-live="polite">
+        Results for:{" "}
+        <span className={styles.resultsQuery}>&ldquo;{tab.label}&rdquo;</span>
+        &nbsp;&middot;&nbsp;
+        <span className={styles.resultsCount}>{tab.lines.length.toLocaleString()}</span>{" "}
+        lines matched
+      </div>
+    );
 
   if (tab.lines.length === 0) {
     return (

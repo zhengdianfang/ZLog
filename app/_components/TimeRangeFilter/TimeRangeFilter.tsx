@@ -5,7 +5,12 @@ import { useFilterStore } from "@/app/stores/filterStore";
 import { useFileStore } from "@/app/stores/fileStore";
 import styles from "./TimeRangeFilter.module.css";
 
-export default function TimeRangeFilter() {
+interface TimeRangeFilterProps {
+  onApply?: (range: { start: string; end: string }) => void;
+  onRangeChange?: () => void;
+}
+
+export default function TimeRangeFilter({ onApply, onRangeChange }: TimeRangeFilterProps) {
   const { startTime, endTime, setStartTime, setEndTime, beginClear, clearFilter } =
     useFilterStore();
   const { loadedFile } = useFileStore();
@@ -33,8 +38,12 @@ export default function TimeRangeFilter() {
       return;
     }
     setError(null);
-    setStartTime(localStart);
-    setEndTime(localEnd);
+    if (onApply) {
+      onApply({ start: localStart, end: localEnd });
+    } else {
+      setStartTime(localStart);
+      setEndTime(localEnd);
+    }
   }
 
   function handleClear() {
@@ -57,7 +66,7 @@ export default function TimeRangeFilter() {
           step="1"
           className={styles.input}
           value={localStart}
-          onChange={(e) => setLocalStart(e.target.value)}
+          onChange={(e) => { setLocalStart(e.target.value); onRangeChange?.(); }}
           disabled={disabled}
         />
       </div>
@@ -71,7 +80,7 @@ export default function TimeRangeFilter() {
           step="1"
           className={styles.input}
           value={localEnd}
-          onChange={(e) => setLocalEnd(e.target.value)}
+          onChange={(e) => { setLocalEnd(e.target.value); onRangeChange?.(); }}
           disabled={disabled}
         />
       </div>

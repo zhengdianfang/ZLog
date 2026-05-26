@@ -6,6 +6,11 @@
 export interface SearchTab {
   /** Unique identifier generated via crypto.randomUUID(). */
   id: string;
+  /**
+   * Discriminates between a keyword search tab and a time-filter snapshot tab.
+   * Defaults to "search" when absent for backward compatibility.
+   */
+  kind: "search" | "timeFilter";
   /** The keyword string exactly as submitted by the user. */
   label: string;
   /** Log lines that matched at search time, with their original 0-based indices. */
@@ -14,6 +19,8 @@ export interface SearchTab {
   isRegexMode: boolean;
   /** Snapshot of isCaseSensitive at the moment the search was triggered. */
   isCaseSensitive: boolean;
+  /** Present only when kind === "timeFilter". Snapshot of the applied time range. */
+  timeRange?: { start: string; end: string };
 }
 
 /**
