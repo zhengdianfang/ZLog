@@ -95,7 +95,11 @@ export default function LogViewerTabBar({
               type="button"
               className={styles.closeTab}
               onClick={() => onCloseTab(tab.id)}
-              aria-label={`Close ${tab.label} search tab`}
+              aria-label={
+                tab.kind === "timeFilter"
+                  ? `Close ${tab.label} time filter tab`
+                  : `Close ${tab.label} search tab`
+              }
             >
               ×
             </button>

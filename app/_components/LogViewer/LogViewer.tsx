@@ -52,6 +52,7 @@ export default function LogViewer() {
 
   const [searchTabs, setSearchTabs] = useState<SearchTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<ActiveTabId>("log");
+  const [noMatchWarning, setNoMatchWarning] = useState(false);
 
   /** Ref to the Log tab button — focus is moved here after a search tab is closed. */
   const logTabRef = useRef<HTMLButtonElement | null>(null);
@@ -114,6 +115,7 @@ export default function LogViewer() {
 
       const newTab: SearchTab = {
         id: crypto.randomUUID(),
+        kind: "search",
         label: keyword,
         lines: matchedLines,
         isRegexMode: snapshotRegexMode,
@@ -124,6 +126,54 @@ export default function LogViewer() {
       setActiveTabId(newTab.id);
     },
     [setSubmittedKeyword, isRegexMode, isCaseSensitive, timeFilteredLines],
+  );
+
+  const handleTimeFilterApply = useCallback(
+    (range: { start: string; end: string }) => {
+      const toSeconds = (t: string) => {
+        const [h, m, s = "0"] = t.split(":");
+        return Number(h) * 3600 + Number(m) * 60 + parseFloat(s);
+      };
+      const start = range.start ? toSeconds(range.start) : null;
+      const end = range.end ? toSeconds(range.end) : null;
+
+      const matchedLines = lines
+        .map((line, index) => ({ line, originalIndex: index }))
+        .filter(({ line }) => {
+          const ts = parseLineTimestamp(line);
+          if (!ts) return false;
+          const sec = ts.getHours() * 3600 + ts.getMinutes() * 60 + ts.getSeconds();
+          if (start !== null && sec < start) return false;
+          if (end !== null && sec > end) return false;
+          return true;
+        });
+
+      if (matchedLines.length === 0) {
+        setNoMatchWarning(true);
+        return;
+      }
+
+      setNoMatchWarning(false);
+
+      const startPart = range.start;
+      const endPart = range.end;
+      const rangeSuffix = `[${startPart}–${endPart}]`;
+      const tabLabel = `${loadedFile!.name} ${rangeSuffix}`;
+
+      const newTab: SearchTab = {
+        id: crypto.randomUUID(),
+        kind: "timeFilter",
+        label: tabLabel,
+        lines: matchedLines,
+        isRegexMode: false,
+        isCaseSensitive: false,
+        timeRange: { start: range.start, end: range.end },
+      };
+
+      setSearchTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    [lines, loadedFile],
   );
 
   const handleCloseTab = useCallback(
@@ -188,8 +238,16 @@ export default function LogViewer() {
           <KeywordSearch onSearch={handleSearch} />
         </div>
         <div className={styles.searchDivider} aria-hidden="true" />
-        <TimeRangeFilter />
+        <TimeRangeFilter
+          onApply={handleTimeFilterApply}
+          onRangeChange={() => setNoMatchWarning(false)}
+        />
       </div>
+      {noMatchWarning && (
+        <p className={styles.noMatchWarning} role="alert">
+          No log entries match the selected time range.
+        </p>
+      )}
       <LogViewerTabBar
         searchTabs={searchTabs}
         activeTabId={activeTabId}
