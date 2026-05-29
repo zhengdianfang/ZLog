@@ -151,7 +151,7 @@ function ModalForm({ onClose, onSave, initialRule }: ModalFormProps) {
           <label htmlFor="pattern-verify-demo" className={styles.label}>
             Pattern Verify
           </label>
-          <PatternVerifyBlock pattern={pattern} />
+          <PatternVerifyBlock pattern={pattern} description={description} />
         </div>
       </div>
 

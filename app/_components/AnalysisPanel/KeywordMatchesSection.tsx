@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useKeywordStore } from "@/app/stores/keywordStore";
 import { useFileStore } from "@/app/stores/fileStore";
 import { KEYWORD_TYPE_COLORS } from "@/app/constants/keywordColors";
+import { resolveDescription } from "@/app/lib/searchUtils";
 import styles from "./KeywordMatchesSection.module.css";
 
 const MAX_MATCHES_PER_RULE = 200;
@@ -36,17 +37,24 @@ export function KeywordMatchesSection() {
       try {
         regex = new RegExp(parsePatternBody(rule.pattern));
       } catch {
-        return { rule, matches: [] as Array<{ lineIndex: number; text: string }>, truncated: false };
+        return { rule, matches: [] as Array<{ lineIndex: number; text: string; groups: Record<string, string> }>, truncated: false };
       }
-      const matches: Array<{ lineIndex: number; text: string }> = [];
+      const matches: Array<{ lineIndex: number; text: string; groups: Record<string, string> }> = [];
       let truncated = false;
       for (let i = 0; i < lines.length; i++) {
-        if (regex.test(lines[i])) {
+        const execResult = regex.exec(lines[i]);
+        if (execResult) {
           if (matches.length >= MAX_MATCHES_PER_RULE) {
             truncated = true;
             break;
           }
-          matches.push({ lineIndex: i, text: lines[i] });
+          const groups: Record<string, string> = {};
+          if (execResult.groups) {
+            for (const [key, val] of Object.entries(execResult.groups)) {
+              groups[key] = val ?? "";
+            }
+          }
+          matches.push({ lineIndex: i, text: lines[i], groups });
         }
       }
       return { rule, matches, truncated };
@@ -78,8 +86,10 @@ export function KeywordMatchesSection() {
               <p className={styles.noMatches}>No matches</p>
             ) : (
               <ul className={styles.matchList} aria-label={`Matches for ${rule.description}`}>
-                {matches.map(({ lineIndex, text }) => {
+                {matches.map(({ lineIndex, text, groups }) => {
                   const isActive = focusedLine?.index === lineIndex;
+                  const resolved = resolveDescription(rule.description, groups);
+                  const hasSubstitution = resolved !== rule.description;
                   return (
                   <li
                     key={lineIndex}
@@ -98,7 +108,9 @@ export function KeywordMatchesSection() {
                     aria-label={`Go to line ${lineIndex + 1}`}
                   >
                     <span className={styles.lineNum}>{lineIndex + 1}</span>
-                    <span className={styles.lineText}>{text}</span>
+                    <span className={styles.lineText}>
+                      {hasSubstitution ? resolved : text}
+                    </span>
                   </li>
                   );
                 })}
