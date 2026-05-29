@@ -15,6 +15,14 @@ jest.mock("bcryptjs", () => ({
 
 jest.mock("next/navigation", () => ({ redirect: jest.fn() }));
 
+jest.mock("next/headers", () => ({
+  cookies: jest.fn().mockResolvedValue({
+    set: jest.fn(),
+    get: jest.fn(),
+    delete: jest.fn(),
+  }),
+}));
+
 // drizzle-orm eq / schema columns are just values; mock them as no-ops
 jest.mock("drizzle-orm", () => ({ eq: jest.fn() }));
 jest.mock("@/db/schema", () => ({
