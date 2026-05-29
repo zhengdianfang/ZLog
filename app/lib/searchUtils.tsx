@@ -41,6 +41,25 @@ export function buildSearchRegex(
 }
 
 /**
+ * Resolve a description template by substituting named capture group values.
+ *
+ * Each key in `groups` is treated as a literal placeholder in `template`.
+ * Example: resolveDescription("hh : type=$1", { "$1": "2000" }) → "hh : type=2000"
+ * When no groups are present the original template is returned unchanged.
+ */
+export function resolveDescription(
+  template: string,
+  groups: Record<string, string>,
+): string {
+  if (Object.keys(groups).length === 0) return template;
+  let result = template;
+  for (const [key, value] of Object.entries(groups)) {
+    result = result.split(key).join(value);
+  }
+  return result;
+}
+
+/**
  * Highlight all matches of `searchRegex` in `text`.
  * Uses the global variant of the regex (matchAll) to avoid lastIndex bugs.
  * The `highlightClassName` is applied to each `<mark>` element.

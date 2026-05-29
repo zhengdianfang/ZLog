@@ -103,6 +103,18 @@
   color: var(--foreground, #111);
 }
 
+.resolvedPreview {
+  font-size: 12px;
+  color: var(--text-secondary, #555);
+  margin: 0;
+}
+
+.resolvedValue {
+  font-family: "Menlo", "Monaco", "Consolas", monospace;
+  color: var(--foreground, #111);
+  font-weight: 500;
+}
+
 @media (prefers-color-scheme: dark) {
   .demoInput {
     --modal-border: #333;

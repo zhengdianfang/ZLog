@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { resolveDescription } from "@/app/lib/searchUtils";
 import styles from "./PatternVerifyBlock.module.css";
 
 type VerifyState =
@@ -11,6 +12,7 @@ type VerifyState =
 
 interface PatternVerifyBlockProps {
   pattern: string;
+  description?: string;
 }
 
 function parsePatternBody(pattern: string): string {
@@ -22,7 +24,7 @@ function parsePatternBody(pattern: string): string {
   return trimmed;
 }
 
-export function PatternVerifyBlock({ pattern }: PatternVerifyBlockProps) {
+export function PatternVerifyBlock({ pattern, description }: PatternVerifyBlockProps) {
   const [demoString, setDemoString] = useState("");
   const [verifyState, setVerifyState] = useState<VerifyState>({ status: "idle" });
 
@@ -90,22 +92,32 @@ export function PatternVerifyBlock({ pattern }: PatternVerifyBlockProps) {
           <div className={styles.resultSuccess}>
             <p className={styles.resultSuccessLabel}>Match found.</p>
             {Object.keys(verifyState.groups).length > 0 && (
-              <table className={styles.groupTable}>
-                <thead>
-                  <tr>
-                    <th className={styles.groupTableTh}>Group</th>
-                    <th className={styles.groupTableTh}>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(verifyState.groups).map(([name, value]) => (
-                    <tr key={name}>
-                      <td className={styles.groupTableTd}>{name}</td>
-                      <td className={styles.groupTableTd}>{value}</td>
+              <>
+                <table className={styles.groupTable}>
+                  <thead>
+                    <tr>
+                      <th className={styles.groupTableTh}>Group</th>
+                      <th className={styles.groupTableTh}>Value</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {Object.entries(verifyState.groups).map(([name, value]) => (
+                      <tr key={name}>
+                        <td className={styles.groupTableTd}>{name}</td>
+                        <td className={styles.groupTableTd}>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {description && (() => {
+                  const resolved = resolveDescription(description, verifyState.groups);
+                  return resolved !== description ? (
+                    <p className={styles.resolvedPreview}>
+                      Preview: <span className={styles.resolvedValue}>{resolved}</span>
+                    </p>
+                  ) : null;
+                })()}
+              </>
             )}
           </div>
         )}
