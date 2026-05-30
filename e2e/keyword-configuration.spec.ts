@@ -1311,7 +1311,7 @@ test.describe("KeywordConfiguration — update and delete", () => {
 
   test.describe("persistence — logged in user", () => {
     // Clean up any test rules written to DB after each persistence test.
-    test.afterEach(async ({ request }) => {
+    test.afterEach(async () => {
       // Use the Next.js API route to delete all rules for the test user.
       // We call the server action indirectly by making a request with the session cookie.
       // Since server actions are POST-only and require Next.js internals, we rely on the
