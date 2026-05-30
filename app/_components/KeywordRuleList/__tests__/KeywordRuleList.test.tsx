@@ -9,64 +9,70 @@ import { useKeywordStore } from "@/app/stores/keywordStore";
 
 const mockUseKeywordStore = useKeywordStore as unknown as jest.Mock;
 
+const ruleA = { id: "1", type: "error" as const, description: "Crash log", pattern: "/FATAL/" };
+const ruleB = { id: "2", type: "warn" as const, description: "Slow response", pattern: "/SLOW/" };
+
+import type { KeywordRule } from "@/app/types/keyword";
+
+const baseStore = (savedRules: KeywordRule[], rules: KeywordRule[]) => ({
+  savedRules,
+  rules,
+  setActiveRuleIds: jest.fn(),
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
 describe("KeywordRuleList", () => {
-  it("renders empty state message when there are no rules", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [], removeRule: jest.fn() });
+  it("renders active rules as tags — both descriptions appear in output", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA, ruleB], [ruleA, ruleB]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
-    const html = renderToString(<KeywordRuleList />);
-    expect(html).toContain("No keyword rules yet");
-  });
-
-  it("renders a rule row when rules exist", () => {
-    mockUseKeywordStore.mockReturnValue({
-      rules: [
-        {
-          id: "1",
-          type: "error",
-          description: "Crash log",
-          pattern: "/FATAL/",
-        },
-      ],
-      removeRule: jest.fn(),
-    });
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { KeywordRuleList } = require("../KeywordRuleList");
-    const html = renderToString(<KeywordRuleList />);
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
     expect(html).toContain("Crash log");
-    expect(html).toContain("/FATAL/");
-    expect(html).toContain("error");
+    expect(html).toContain("Slow response");
   });
 
-  it("renders a delete button for each rule", () => {
-    mockUseKeywordStore.mockReturnValue({
-      rules: [
-        { id: "a", type: "info", description: "Start", pattern: "/start/" },
-        { id: "b", type: "warn", description: "Warn", pattern: "/warn/" },
-      ],
-      removeRule: jest.fn(),
-    });
+  it("renders tag label element with correct class for each active rule", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
-    const html = renderToString(<KeywordRuleList />);
-    const deleteMatches = html.match(/aria-label="Delete rule:/g);
-    expect(deleteMatches).toHaveLength(2);
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain("Crash log");
+    expect(html).toContain("tagLabel");
   });
 
-  it("does not render empty state when rules exist", () => {
-    mockUseKeywordStore.mockReturnValue({
-      rules: [
-        { id: "1", type: "core", description: "Core", pattern: "/core/" },
-      ],
-      removeRule: jest.fn(),
-    });
+  it("renders remove button for each active rule with correct aria-label", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA, ruleB], [ruleA, ruleB]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
-    const html = renderToString(<KeywordRuleList />);
-    expect(html).not.toContain("No keyword rules yet");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain(`aria-label="Remove rule: Crash log"`);
+    expect(html).toContain(`aria-label="Remove rule: Slow response"`);
+  });
+
+  it("shows placeholder text when no active rules exist", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([], []));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { KeywordRuleList } = require("../KeywordRuleList");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain("Select saved keyword rules to apply...");
+  });
+
+  it("does not show placeholder when active rules exist", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { KeywordRuleList } = require("../KeywordRuleList");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).not.toContain("Select saved keyword rules");
+  });
+
+  it("applies type-based background color from KEYWORD_TYPE_COLORS to the tag", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { KeywordRuleList } = require("../KeywordRuleList");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain("#fef2f2");
   });
 });

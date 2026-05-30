@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { KeywordConfigModal } from "@/app/_components/KeywordConfigModal/KeywordConfigModal";
 import { KeywordRuleList } from "@/app/_components/KeywordRuleList/KeywordRuleList";
+import { useAuthStore } from "@/app/stores/authStore";
 import { useKeywordStore } from "@/app/stores/keywordStore";
 import type { KeywordRule } from "@/app/types/keyword";
 import styles from "./KeywordRulesSection.module.css";
@@ -10,8 +11,16 @@ import styles from "./KeywordRulesSection.module.css";
 export function KeywordRulesSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<KeywordRule | null>(null);
+  const user = useAuthStore((state) => state.user);
   const addRule = useKeywordStore((state) => state.addRule);
   const updateRule = useKeywordStore((state) => state.updateRule);
+  const loadRulesFromDb = useKeywordStore((state) => state.loadRulesFromDb);
+
+  useEffect(() => {
+    if (user) {
+      loadRulesFromDb();
+    }
+  }, [user, loadRulesFromDb]);
 
   const handleOpenAdd = useCallback(() => {
     setEditingRule(null);

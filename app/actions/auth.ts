@@ -105,6 +105,15 @@ export async function loginUser(formData: FormData): Promise<LoginResult> {
     return { success: false, errors: { general: "Invalid email or password" } };
   }
 
+  const cookieStore = await cookies();
+  cookieStore.set("session", String(user[0].id), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  });
+
   return { success: true, user: { id: String(user[0].id), email } };
 }
 

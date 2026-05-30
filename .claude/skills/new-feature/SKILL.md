@@ -9,7 +9,13 @@ args:
 
 # New Feature Pipeline
 
-This skill orchestrates the complete feature lifecycle in four sequential agent stages. The variable `{{feature-name}}` flows through every stage as the Git branch name and the Trello card tag.
+This skill orchestrates the complete feature lifecycle in four sequential agent stages. The variable `{{feature-name}}` flows through every stage as the Git branch name and the story directory name.
+
+All story artifacts are written to `.claude/stories/{{feature-name}}/` in the project root:
+- `story.md` — user story and acceptance criteria (BA agent)
+- `ux.md` — UX design outline (UX agent)
+- `test-results.md` — E2E test results (test agent)
+- `status.md` — current pipeline status (updated by each agent)
 
 **IMPORTANT — Human-in-the-loop rule:** After each stage completes, you MUST stop and present a review summary to the user. Do NOT start the next stage until the user explicitly approves with a clear confirmation ("yes", "approved", "go ahead", "proceed", or equivalent). If the user requests changes, incorporate them before asking for approval again.
 
@@ -26,8 +32,10 @@ Invoke **ba-agent** to:
    - **As a** … **I want** … **So that** …
    - **Acceptance Criteria** (numbered list)
    - **Out of scope** (one line)
-4. Create a Trello card on the **ZLog board** in the **TODO** column with the full story text.
-5. Return the Trello card URL.
+4. Write the full story to `.claude/stories/{{feature-name}}/story.md`.
+5. Write `TODO` to `.claude/stories/{{feature-name}}/status.md`.
+6. Return the file path and full story text.
+7. Do NOT create, update, or move any Trello cards.
 
 ### Stage 1 Review Gate
 
@@ -35,7 +43,7 @@ After ba-agent completes, present this summary to the user and WAIT for approval
 
 ```
 --- Stage 1 Complete: Story Card ---
-Trello card: <card URL>
+Story file: .claude/stories/{{feature-name}}/story.md
 
 <paste the full user story here>
 
@@ -51,14 +59,14 @@ Do NOT invoke ux-agent until the user explicitly approves.
 
 Invoke **ux-agent** only after Stage 1 is approved:
 
-1. Read the Trello card description produced in Stage 1.
+1. Read `.claude/stories/{{feature-name}}/story.md`.
 2. Produce a concise design outline covering:
    - **Screen / component breakdown** — which views are affected
    - **Interaction flow** — step-by-step user journey (numbered)
    - **Key UI states** — empty, loading, error, success
    - **Component inventory** — list of new or modified components with their props
    - **Layout sketch** — ASCII wireframe for the primary screen
-3. Append the design outline to the same Trello card as a new comment titled `## UX Design Outline`.
+3. Write the design outline to `.claude/stories/{{feature-name}}/ux.md` with a top-level heading `# UX Design Outline`.
 
 ### Stage 2 Review Gate
 
@@ -66,7 +74,7 @@ After ux-agent completes, present this summary to the user and WAIT for approval
 
 ```
 --- Stage 2 Complete: UX Design ---
-Design outline posted to Trello card.
+Design file: .claude/stories/{{feature-name}}/ux.md
 
 <paste the full design outline here>
 
@@ -82,14 +90,14 @@ Do NOT invoke dev-agent until the user explicitly approves.
 
 Invoke **dev-agent** only after Stage 2 is approved:
 
-1. Read the Trello card (story + UX outline).
+1. Read `.claude/stories/{{feature-name}}/story.md` and `.claude/stories/{{feature-name}}/ux.md`.
 2. Prepare the branch:
    ```
    git checkout main
    git pull --rebase
    git checkout -b feature/{{feature-name}}
    ```
-3. Move the Trello card to the **DOING** column.
+3. Update `.claude/stories/{{feature-name}}/status.md` to `DOING`.
 4. Implement the feature following the project's coding conventions (TypeScript strict, functional components, named exports, no `any`, no dead code).
 5. Run the full quality suite and fix all failures before continuing:
    ```
@@ -124,7 +132,7 @@ Do NOT invoke test-agent until the user explicitly approves.
 
 Invoke **test-agent** only after Stage 3 is approved:
 
-1. Read the acceptance criteria from the Trello card.
+1. Read the acceptance criteria from `.claude/stories/{{feature-name}}/story.md`.
 2. Write Playwright E2E tests that cover every acceptance criterion.
 3. Run the E2E tests:
    ```
@@ -144,8 +152,8 @@ Invoke **test-agent** only after Stage 3 is approved:
    - After dev-agent completes its fix, present a Stage 3 Review Gate (same format as above) and WAIT for user approval before running test-agent again.
    - Repeat this loop (test-agent → failure report → user approval → dev-agent fix → user approval → test-agent) until all tests pass.
 5. When all tests pass:
-   - Append a `## Test Results` comment to the Trello card listing each test case and its ✅ status.
-   - Move the Trello card to the **TEST** column.
+   - Write test results to `.claude/stories/{{feature-name}}/test-results.md` listing each test case and its ✅ status.
+   - Update `.claude/stories/{{feature-name}}/status.md` to `TEST`.
 6. Create a Pull Request from `feature/{{feature-name}}` → `main` with the story title as the PR title and the acceptance criteria as the PR body.
 7. Report the PR URL to the user.
 
@@ -157,7 +165,7 @@ When Stage 4 succeeds, output:
 
 ```
 ✅ Feature [{{feature-name}}] pipeline complete.
-   Trello card: <card URL>
+   Story: .claude/stories/{{feature-name}}/
    Pull Request: <PR URL>
    Branch: feature/{{feature-name}}
    All acceptance criteria verified by E2E tests. Awaiting your PR review.
