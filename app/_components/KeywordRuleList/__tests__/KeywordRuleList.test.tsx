@@ -12,13 +12,21 @@ const mockUseKeywordStore = useKeywordStore as unknown as jest.Mock;
 const ruleA = { id: "1", type: "error" as const, description: "Crash log", pattern: "/FATAL/" };
 const ruleB = { id: "2", type: "warn" as const, description: "Slow response", pattern: "/SLOW/" };
 
+import type { KeywordRule } from "@/app/types/keyword";
+
+const baseStore = (savedRules: KeywordRule[], rules: KeywordRule[]) => ({
+  savedRules,
+  rules,
+  setActiveRuleIds: jest.fn(),
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
 describe("KeywordRuleList", () => {
-  it("renders rules as tags — both descriptions appear in output", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [ruleA, ruleB], removeRule: jest.fn() });
+  it("renders active rules as tags — both descriptions appear in output", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA, ruleB], [ruleA, ruleB]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
@@ -26,8 +34,8 @@ describe("KeywordRuleList", () => {
     expect(html).toContain("Slow response");
   });
 
-  it("clicking tag label calls onEdit — tag label element is rendered with correct class", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [ruleA], removeRule: jest.fn() });
+  it("renders tag label element with correct class for each active rule", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
@@ -35,8 +43,8 @@ describe("KeywordRuleList", () => {
     expect(html).toContain("tagLabel");
   });
 
-  it("renders remove button for each rule with correct aria-label", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [ruleA, ruleB], removeRule: jest.fn() });
+  it("renders remove button for each active rule with correct aria-label", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA, ruleB], [ruleA, ruleB]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
@@ -44,24 +52,24 @@ describe("KeywordRuleList", () => {
     expect(html).toContain(`aria-label="Remove rule: Slow response"`);
   });
 
-  it("shows placeholder text when no rules exist", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [], removeRule: jest.fn() });
+  it("shows placeholder text when no active rules exist", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([], []));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
-    expect(html).toContain("No keyword rules yet. Add one to start highlighting.");
+    expect(html).toContain("Select saved keyword rules to apply...");
   });
 
-  it("does not show placeholder when rules exist", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [ruleA], removeRule: jest.fn() });
+  it("does not show placeholder when active rules exist", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
-    expect(html).not.toContain("No keyword rules yet.");
+    expect(html).not.toContain("Select saved keyword rules");
   });
 
   it("applies type-based background color from KEYWORD_TYPE_COLORS to the tag", () => {
-    mockUseKeywordStore.mockReturnValue({ rules: [ruleA], removeRule: jest.fn() });
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);

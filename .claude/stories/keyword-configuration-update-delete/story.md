@@ -117,6 +117,72 @@ Notes:
 
 ---
 
+## Story 3: Persist Keyword Rules to Database
+
+As a mobile developer
+I want my keyword rules to be saved to the database and tied to my account
+So that my rules are restored when I return to the app on any device or after a page refresh
+
+Scenario: Rules persist across page refreshes
+  Given I am logged in and have created keyword rules
+  When I refresh the page or reopen the app
+  Then my keyword rules are restored automatically
+
+Scenario: Rules are user-scoped
+  Given two different users have each created their own keyword rules
+  When each user logs in
+  Then each sees only their own rules
+
+Scenario: Guest user rules are in-memory only
+  Given I am not logged in
+  When I create keyword rules
+  Then the rules exist only for the current session and are lost on page refresh
+  And no data is written to the database
+
+---
+
+## Acceptance Criteria (updated)
+
+### Persistence
+14. When a logged-in user adds, updates, or deletes a rule, the change is saved to the database.
+15. On page load, if the user is logged in, their saved rules are fetched from the database and loaded into the store.
+16. Rules are scoped to the logged-in user — no cross-user data leakage.
+17. If the user is not logged in, the app works in in-memory mode (current Zustand-only behavior); no DB calls are made.
+18. Database errors do not crash the UI — failures are silent (the local Zustand state still updates).
+
+---
+
+## Technical Notes (Persistence)
+
+**Schema addition** (`db/schema.ts`):
+```ts
+export const keywordRules = pgTable("keyword_rules", {
+  id: text("id").primaryKey(),          // nanoid, generated client-side
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  description: text("description").notNull(),
+  pattern: text("pattern").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+**Session fix**: `loginUser` in `app/actions/auth.ts` must set an httpOnly `session` cookie containing the user ID so server actions can identify the caller. A `getSession()` helper reads it.
+
+**Server actions** (`app/actions/keywordRules.ts`):
+- `fetchKeywordRules()` — returns rules for the current session user
+- `saveKeywordRule(rule)` — upsert (insert or update on conflict)
+- `deleteKeywordRule(id)` — deletes by ID, verifies ownership
+
+**Store update** (`app/stores/keywordStore.ts`):
+- `addRule` / `updateRule` / `removeRule` stay synchronous for UI responsiveness
+- Each fires the corresponding server action in the background (fire-and-forget; no await in UI path)
+- New `loadRulesFromDb()` action: fetches from server and replaces local rules
+
+**Loading** (`app/_components/AnalysisPanel/KeywordRulesSection.tsx`):
+- On mount, if `authStore.user` is set, call `loadRulesFromDb()`
+
+---
+
 ## Out of Scope
 
-Bulk delete, drag-to-reorder rules, or persisting rules to a backend/local storage across sessions.
+Bulk delete, drag-to-reorder rules, offline sync conflict resolution, or rule sharing between users.

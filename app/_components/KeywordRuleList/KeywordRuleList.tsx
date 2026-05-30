@@ -20,11 +20,11 @@ interface TagRenderProps {
 }
 
 export function KeywordRuleList({ onEdit }: KeywordRuleListProps) {
-  const { rules, removeRule } = useKeywordStore();
+  const { savedRules, rules, setActiveRuleIds } = useKeywordStore();
 
   const tagRender = (props: TagRenderProps) => {
     const { value, onClose } = props;
-    const rule = rules.find((r) => r.id === value);
+    const rule = savedRules.find((r) => r.id === value);
     if (!rule) return <></>;
 
     const colors = KEYWORD_TYPE_COLORS[rule.type];
@@ -40,15 +40,14 @@ export function KeywordRuleList({ onEdit }: KeywordRuleListProps) {
         />
         <span
           className={styles.tagLabel}
-          onClick={(e) => {
-            e.preventDefault();
-            onEdit(rule);
-          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => onEdit(rule)}
         >
           {rule.description}
         </span>
         <span
           className={styles.tagClose}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onClose(e);
@@ -62,25 +61,37 @@ export function KeywordRuleList({ onEdit }: KeywordRuleListProps) {
     );
   };
 
-  const handleChange = (selectedIds: string[]) => {
-    const currentIds = rules.map((r) => r.id);
-    const removedId = currentIds.find((id) => !selectedIds.includes(id));
-    if (removedId) {
-      removeRule(removedId);
-    }
-  };
+  const options = savedRules.map((r) => {
+    const colors = KEYWORD_TYPE_COLORS[r.type];
+    return {
+      value: r.id,
+      label: (
+        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: colors.badgeBg,
+              flexShrink: 0,
+            }}
+          />
+          {r.description}
+        </span>
+      ),
+    };
+  });
 
   return (
     <Select
       className={styles.select}
       mode="multiple"
-      open={false}
-      suffixIcon={null}
       value={rules.map((r) => r.id)}
-      options={rules.map((r) => ({ value: r.id, label: r.description }))}
+      options={options}
       tagRender={tagRender}
-      onChange={handleChange}
-      placeholder="No keyword rules yet. Add one to start highlighting."
+      onChange={setActiveRuleIds}
+      placeholder="Select saved keyword rules to apply..."
     />
   );
 }
