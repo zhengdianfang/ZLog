@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import path from "path";
 
 const FIXTURE_PATH = path.join(__dirname, "fixtures", "sample.log");
@@ -494,7 +494,9 @@ test.describe("KeywordConfiguration — save and rule list", () => {
   });
 
   test("AC9: empty state shown when no rules exist", async ({ page }) => {
-    await expect(page.getByText("No keyword rules yet.")).toBeVisible();
+    await expect(page.locator(".ant-select-selection-placeholder")).toHaveText(
+      "Select saved keyword rules to apply...",
+    );
   });
 
   test("AC9: new rule appears in the rule list immediately after saving", async ({ page }) => {
@@ -506,17 +508,20 @@ test.describe("KeywordConfiguration — save and rule list", () => {
     });
 
     await expect(page.getByRole("dialog")).not.toBeVisible();
-    await expect(page.getByText("Video start")).toBeVisible();
-    await expect(page.getByText("CrashReporter")).toBeVisible();
+    await expect(page.locator('[class*="tagLabel"]').filter({ hasText: "Video start" })).toBeVisible();
   });
 
   test("AC9: saved rule shows the correct type badge", async ({ page }) => {
     await openModal(page);
     await fillAndSave(page, { type: "error", description: "Error rule", pattern: "ANR" });
 
-    // The rule list item should display an "error" badge scoped to the rule list.
-    const ruleList = page.locator('[class*="KeywordRuleList"]');
-    await expect(ruleList.getByText("error", { exact: true }).first()).toBeVisible();
+    // The tag for the new rule should contain a color dot (tagDot) with a non-empty background-color.
+    const tag = page.locator('.ant-select-selector').locator('[class*="tagLabel"]').filter({ hasText: "Error rule" });
+    await expect(tag).toBeVisible();
+
+    const dot = tag.locator('..').locator('[class*="tagDot"]');
+    const bgColor = await dot.evaluate((el) => (el as HTMLElement).style.backgroundColor);
+    expect(bgColor).not.toBe("");
   });
 
   test("AC9: rule appears without full page reload (dialog closes, list updates in-place)", async ({
@@ -548,12 +553,14 @@ test.describe("KeywordConfiguration — save and rule list", () => {
     await openModal(page);
     await fillAndSave(page, { type: "core", description: "Core Rule", pattern: "SessionManager" });
 
-    await expect(page.getByText("Core Rule")).toBeVisible();
+    await expect(page.locator('[class*="tagLabel"]').filter({ hasText: "Core Rule" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Delete rule: Core Rule" }).click();
+    await page.getByRole("button", { name: "Remove rule: Core Rule" }).click();
 
-    await expect(page.getByText("Core Rule")).not.toBeVisible();
-    await expect(page.getByText("No keyword rules yet.")).toBeVisible();
+    await expect(page.locator('[class*="tagLabel"]').filter({ hasText: "Core Rule" })).not.toBeVisible();
+    await expect(page.locator(".ant-select-selection-placeholder")).toHaveText(
+      "Select saved keyword rules to apply...",
+    );
   });
 
   test("AC9: log lines matching a saved rule are color-highlighted after file load", async ({
@@ -800,5 +807,638 @@ test.describe("KeywordConfiguration — edge cases", () => {
     await expect(page.getByRole("cell", { name: "01" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "day" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "15" })).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for update/delete tests
+// ---------------------------------------------------------------------------
+
+const AUTH_STORAGE_KEY = "zlog-auth";
+
+/**
+ * Seed the Zustand auth store so the component calls loadRulesFromDb on mount.
+ * We use the real user ID (1) matching the test account in the database.
+ */
+async function seedLoggedInAuthState(context: BrowserContext) {
+  await context.addInitScript((args: { key: string; userId: string; email: string }) => {
+    const state = { state: { user: { id: args.userId, email: args.email } }, version: 0 };
+    window.localStorage.setItem(args.key, JSON.stringify(state));
+  }, { key: AUTH_STORAGE_KEY, userId: "1", email: "zhengdianfang@gmail.com" });
+}
+
+/**
+ * Set the httpOnly session cookie so server actions authenticate the caller.
+ * The session cookie value is just the user ID as a string.
+ */
+async function seedSessionCookie(context: BrowserContext) {
+  await context.addCookies([
+    {
+      name: "session",
+      value: "1",
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
+}
+
+/**
+ * Clear all auth state (localStorage + session cookie) to simulate a guest.
+ */
+async function clearAllAuthState(context: BrowserContext) {
+  await context.addInitScript((key: string) => {
+    window.localStorage.removeItem(key);
+  }, AUTH_STORAGE_KEY);
+  await context.clearCookies();
+}
+
+/**
+ * Add a rule, wait for the modal to close, and confirm the tag appears.
+ */
+async function addRuleAndConfirm(
+  page: Page,
+  opts: { type?: string; description: string; pattern: string },
+) {
+  const { type = "info", description, pattern } = opts;
+  await openModal(page);
+  await fillAndSave(page, { type, description, pattern });
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  // The tag label for the newly added rule must appear.
+  await expect(page.locator('[class*="tagLabel"]').filter({ hasText: description })).toBeVisible();
+}
+
+// ---------------------------------------------------------------------------
+// AC1–9 (Edit) and AC10–13 (Delete/Deactivate) and AC14–17 (Persistence)
+// ---------------------------------------------------------------------------
+
+test.describe("KeywordConfiguration — update and delete", () => {
+  // -------------------------------------------------------------------------
+  // Edit: opening modal in edit mode (AC1–3, AC8)
+  // -------------------------------------------------------------------------
+
+  test.describe("edit mode — modal state", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC1: clicking a tag label opens the modal in edit mode", async ({ page }) => {
+      await addRuleAndConfirm(page, { type: "error", description: "Crash log", pattern: "/FATAL/" });
+
+      // Click the tag label (the description text within the tag).
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Crash log" }).click();
+
+      await expect(page.getByRole("dialog")).toBeVisible();
+    });
+
+    test("AC2: modal title reads 'Edit Keyword Rule' when opened from a tag", async ({ page }) => {
+      await addRuleAndConfirm(page, { type: "error", description: "Crash log", pattern: "/FATAL/" });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Crash log" }).click();
+
+      await expect(page.locator("#keyword-config-modal-title")).toHaveText("Edit Keyword Rule");
+    });
+
+    test("AC8: submit button reads 'Update Rule' in edit mode", async ({ page }) => {
+      await addRuleAndConfirm(page, { type: "info", description: "Network rule", pattern: "WiFi" });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Network rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await expect(page.getByRole("button", { name: "Update Rule" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Save Rule" })).not.toBeVisible();
+    });
+
+    test("AC3: type field is pre-filled with the rule's existing type", async ({ page }) => {
+      await addRuleAndConfirm(page, { type: "warn", description: "Memory warn", pattern: "OOM" });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Memory warn" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // The "warn" radio should be checked.
+      await expect(page.getByRole("radio", { name: "warn" })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      );
+    });
+
+    test("AC3: description field is pre-filled with the rule's existing description", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Pre-filled desc",
+        pattern: "TestPattern",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Pre-filled desc" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await expect(page.getByLabel("Description")).toHaveValue("Pre-filled desc");
+    });
+
+    test("AC3: filter pattern field is pre-filled with the rule's existing pattern", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Pattern rule",
+        pattern: "MyPattern",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Pattern rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await expect(page.getByLabel("Filter Pattern")).toHaveValue("MyPattern");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Edit: submitting changes (AC4–5)
+  // -------------------------------------------------------------------------
+
+  test.describe("edit mode — submitting changes", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC4 & AC5: submitting valid changes updates the rule without a duplicate", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Original desc",
+        pattern: "OrigPattern",
+      });
+
+      // Open edit modal.
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Original desc" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Update the description.
+      const descInput = page.getByLabel("Description");
+      await descInput.clear();
+      await descInput.fill("Updated desc");
+
+      await page.getByRole("button", { name: "Update Rule" }).click();
+
+      // Modal closes.
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+
+      // Updated rule tag appears.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Updated desc" }),
+      ).toBeVisible();
+
+      // Original tag is gone (no duplicate).
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Original desc" }),
+      ).not.toBeVisible();
+    });
+
+    test("AC5: updated rule appears without a full page reload (URL unchanged)", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "core",
+        description: "Core rule",
+        pattern: "CorePat",
+      });
+      const urlBefore = page.url();
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Core rule" }).click();
+      await page.getByLabel("Description").clear();
+      await page.getByLabel("Description").fill("Core rule updated");
+      await page.getByRole("button", { name: "Update Rule" }).click();
+
+      expect(page.url()).toBe(urlBefore);
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Core rule updated" }),
+      ).toBeVisible();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Edit: cancel leaves original unchanged (AC6)
+  // -------------------------------------------------------------------------
+
+  test.describe("edit mode — cancelling", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC6: clicking Cancel in edit mode leaves original rule unchanged", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "fatal",
+        description: "Fatal rule",
+        pattern: "FATAL",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Fatal rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Modify the description but then cancel.
+      await page.getByLabel("Description").clear();
+      await page.getByLabel("Description").fill("Should not be saved");
+      await page.getByRole("button", { name: "Cancel" }).click();
+
+      // Modal is closed.
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+
+      // Original rule tag is still present.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Fatal rule" }),
+      ).toBeVisible();
+
+      // Modified text is NOT in the list.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Should not be saved" }),
+      ).not.toBeVisible();
+    });
+
+    test("AC6: clicking × close button in edit mode leaves original rule unchanged", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "warn",
+        description: "Warn rule cancel",
+        pattern: "WarnPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Warn rule cancel" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await page.getByLabel("Description").clear();
+      await page.getByLabel("Description").fill("Changed but cancelled");
+      await page.getByRole("button", { name: "Close keyword config" }).click();
+
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Warn rule cancel" }),
+      ).toBeVisible();
+    });
+
+    test("AC6: pressing Escape in edit mode leaves original rule unchanged", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "error",
+        description: "Escape test rule",
+        pattern: "EscPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Escape test rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await page.keyboard.press("Escape");
+
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Escape test rule" }),
+      ).toBeVisible();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Edit: validation in edit mode (AC7)
+  // -------------------------------------------------------------------------
+
+  test.describe("edit mode — validation", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC7: clearing description and submitting shows validation error", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Validation test",
+        pattern: "ValPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Validation test" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Clear description.
+      await page.getByLabel("Description").clear();
+      await page.getByRole("button", { name: "Update Rule" }).click();
+
+      // Validation error for description should appear.
+      await expect(
+        page.locator('[role="alert"]').filter({ hasText: /Description is required/i }),
+      ).toBeVisible();
+
+      // Modal stays open.
+      await expect(page.getByRole("dialog")).toBeVisible();
+    });
+
+    test("AC7: clearing pattern and submitting shows validation error and keeps modal open", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "warn",
+        description: "Pattern validation",
+        pattern: "PValPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "Pattern validation" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      await page.getByLabel("Filter Pattern").clear();
+      await page.getByRole("button", { name: "Update Rule" }).click();
+
+      await expect(
+        page.locator('[role="alert"]').filter({ hasText: /Filter pattern is required/i }),
+      ).toBeVisible();
+      await expect(page.getByRole("dialog")).toBeVisible();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Edit: keyboard accessibility in edit mode (AC9)
+  // -------------------------------------------------------------------------
+
+  test.describe("edit mode — keyboard accessibility", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC9: Update Rule button is keyboard-focusable in edit mode", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "KB accessible rule",
+        pattern: "KBPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "KB accessible rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      const updateBtn = page.getByRole("button", { name: "Update Rule" });
+      await updateBtn.focus();
+      await expect(updateBtn).toBeFocused();
+    });
+
+    test("AC9: type radio buttons can be activated via Enter key in edit mode", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "KB radio rule",
+        pattern: "RadioPat",
+      });
+
+      await page.locator('[class*="tagLabel"]').filter({ hasText: "KB radio rule" }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      // Focus the "error" radio and press Enter.
+      const errorRadio = page.getByRole("radio", { name: "error" });
+      await errorRadio.focus();
+      await page.keyboard.press("Enter");
+      await expect(errorRadio).toHaveAttribute("aria-checked", "true");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Delete / deactivate (AC10–13)
+  // -------------------------------------------------------------------------
+
+  test.describe("deactivate (remove from active rules)", () => {
+    test.beforeEach(async ({ page }) => {
+      await page.goto("/");
+    });
+
+    test("AC10: clicking the × button on a tag removes it from the active list", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "error",
+        description: "Remove me",
+        pattern: "RemovePat",
+      });
+
+      // The tag should be visible.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Remove me" }),
+      ).toBeVisible();
+
+      // Click the × (Remove) button.
+      await page.getByRole("button", { name: "Remove rule: Remove me" }).click();
+
+      // The tag should be gone.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Remove me" }),
+      ).not.toBeVisible();
+    });
+
+    test("AC11: removing the last tag shows the Select placeholder text", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Last rule",
+        pattern: "LastPat",
+      });
+
+      await page.getByRole("button", { name: "Remove rule: Last rule" }).click();
+
+      // After all tags are removed, the Select placeholder should appear.
+      await expect(
+        page.getByText("Select saved keyword rules to apply..."),
+      ).toBeVisible();
+    });
+
+    test("AC12: removing multiple tags shows placeholder only after all are gone", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, { type: "info", description: "Rule Alpha", pattern: "Alpha" });
+      await addRuleAndConfirm(page, { type: "warn", description: "Rule Beta", pattern: "Beta" });
+
+      // Remove first rule.
+      await page.getByRole("button", { name: "Remove rule: Rule Alpha" }).click();
+      // Placeholder should not yet show (Rule Beta tag still active).
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Rule Beta" }),
+      ).toBeVisible();
+
+      // Remove second rule.
+      await page.getByRole("button", { name: "Remove rule: Rule Beta" }).click();
+
+      // Now placeholder is visible.
+      await expect(
+        page.getByText("Select saved keyword rules to apply..."),
+      ).toBeVisible();
+    });
+
+    test("AC13: remove button has correct aria-label for screen reader accessibility", async ({
+      page,
+    }) => {
+      await addRuleAndConfirm(page, {
+        type: "error",
+        description: "Aria label rule",
+        pattern: "AriaPat",
+      });
+
+      const removeBtn = page.getByRole("button", { name: "Remove rule: Aria label rule" });
+      await expect(removeBtn).toBeVisible();
+      await expect(removeBtn).toHaveAttribute("aria-label", "Remove rule: Aria label rule");
+    });
+
+    test("deactivated rule still appears as an option in the Select dropdown", async ({ page }) => {
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: "Dropdown option rule",
+        pattern: "DropPat",
+      });
+
+      // Deactivate (remove tag).
+      await page.getByRole("button", { name: "Remove rule: Dropdown option rule" }).click();
+
+      // The tag is gone from active list.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Dropdown option rule" }),
+      ).not.toBeVisible();
+
+      // Open the Select dropdown and verify the rule appears as an option.
+      // The Ant Design Select opens on click.
+      await page.locator('.ant-select').click();
+      await expect(
+        page.locator('.ant-select-item-option').filter({ hasText: "Dropdown option rule" }),
+      ).toBeVisible({ timeout: 5_000 });
+
+      // Close dropdown by pressing Escape.
+      await page.keyboard.press("Escape");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Persistence (AC14–17)
+  // -------------------------------------------------------------------------
+
+  test.describe("persistence — logged in user", () => {
+    // Clean up any test rules written to DB after each persistence test.
+    test.afterEach(async ({ request }) => {
+      // Use the Next.js API route to delete all rules for the test user.
+      // We call the server action indirectly by making a request with the session cookie.
+      // Since server actions are POST-only and require Next.js internals, we rely on the
+      // Playwright request context to hit a cleanup endpoint if one exists; otherwise
+      // we accept a small amount of test DB data that can be cleaned manually.
+      // The simplest self-contained cleanup: the remove button on each remaining tag.
+      // This is handled inside the test body after assertions to keep things readable.
+    });
+
+    test("AC14 & AC15: rule added while logged in persists across page refresh", async ({
+      page,
+      context,
+    }) => {
+      // Simulate a logged-in session:
+      // 1. Seed the Zustand auth store so the component calls loadRulesFromDb.
+      // 2. Set the httpOnly session cookie (value = user ID "1") so server actions authenticate.
+      await seedLoggedInAuthState(context);
+      await seedSessionCookie(context);
+      await page.goto("/");
+
+      // Add a uniquely-identifiable rule.
+      const uniqueDesc = `Persist rule ${Date.now()}`;
+      await addRuleAndConfirm(page, {
+        type: "error",
+        description: uniqueDesc,
+        pattern: "PersistPat",
+      });
+
+      // Wait briefly for the fire-and-forget server action to complete.
+      await page.waitForTimeout(1_000);
+
+      // Reload the page — the rule should be re-fetched from DB.
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+
+      // The rule should appear as a tag (active) because loadRulesFromDb sets both savedRules and rules.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: uniqueDesc }),
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Cleanup: remove the rule tag (triggers deleteKeywordRule server action).
+      await page.getByRole("button", { name: `Remove rule: ${uniqueDesc}` }).click();
+      await page.waitForTimeout(500);
+    });
+
+    test("AC14: editing a rule while logged in persists the updated values across refresh", async ({
+      page,
+      context,
+    }) => {
+      await seedLoggedInAuthState(context);
+      await seedSessionCookie(context);
+      await page.goto("/");
+
+      const originalDesc = `Edit persist ${Date.now()}`;
+      await addRuleAndConfirm(page, {
+        type: "info",
+        description: originalDesc,
+        pattern: "EditPat",
+      });
+
+      await page.waitForTimeout(500);
+
+      // Edit the rule.
+      await page.locator('[class*="tagLabel"]').filter({ hasText: originalDesc }).click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+
+      const updatedDesc = `${originalDesc} UPDATED`;
+      await page.getByLabel("Description").clear();
+      await page.getByLabel("Description").fill(updatedDesc);
+      await page.getByRole("button", { name: "Update Rule" }).click();
+      await expect(page.getByRole("dialog")).not.toBeVisible();
+
+      // Wait for the server action.
+      await page.waitForTimeout(1_000);
+
+      // Reload and verify the update persisted.
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: updatedDesc }),
+      ).toBeVisible({ timeout: 10_000 });
+
+      // The original description (without the " UPDATED" suffix) must not appear as its own tag.
+      // Use exact text matching to avoid substring collision with the updated tag.
+      const allTagLabels = page.locator('[class*="tagLabel"]');
+      const tagCount = await allTagLabels.count();
+      for (let i = 0; i < tagCount; i++) {
+        const text = await allTagLabels.nth(i).textContent();
+        expect(text?.trim()).not.toBe(originalDesc);
+      }
+
+      // Cleanup: remove the updated rule tag (triggers deleteKeywordRule server action).
+      await page.getByRole("button", { name: `Remove rule: ${updatedDesc}` }).click();
+      await page.waitForTimeout(500);
+    });
+  });
+
+  test.describe("persistence — guest user (AC17)", () => {
+    test("AC17: rules added as guest are lost after page refresh", async ({
+      page,
+      context,
+    }) => {
+      // Ensure no auth state.
+      await clearAllAuthState(context);
+      await page.goto("/");
+
+      // Add a rule as a guest.
+      await addRuleAndConfirm(page, {
+        type: "warn",
+        description: "Guest rule no persist",
+        pattern: "GuestPat",
+      });
+
+      // The rule is visible in session.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Guest rule no persist" }),
+      ).toBeVisible();
+
+      // Reload — as a guest there is no DB persistence.
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+
+      // The rule should be gone.
+      await expect(
+        page.locator('[class*="tagLabel"]').filter({ hasText: "Guest rule no persist" }),
+      ).not.toBeVisible();
+    });
   });
 });
