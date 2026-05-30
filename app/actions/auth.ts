@@ -65,10 +65,9 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export type LoginResult = {
-  success: false;
-  errors: { email?: string[]; password?: string[]; general?: string };
-};
+export type LoginResult =
+  | { success: true; user: { id: string; email: string } }
+  | { success: false; errors: { email?: string[]; password?: string[]; general?: string } };
 
 export async function loginUser(formData: FormData): Promise<LoginResult> {
   const raw = {
@@ -106,7 +105,7 @@ export async function loginUser(formData: FormData): Promise<LoginResult> {
     return { success: false, errors: { general: "Invalid email or password" } };
   }
 
-  redirect("/");
+  return { success: true, user: { id: String(user[0].id), email } };
 }
 
 const verifyEmailSchema = z.object({
