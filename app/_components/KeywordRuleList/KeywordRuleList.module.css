@@ -57,3 +57,29 @@
 .tagClose:hover {
   opacity: 1;
 }
+
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.5;
+  color: inherit;
+  margin-left: 2px;
+}
+
+.deleteButton:hover {
+  opacity: 0.9;
+}
+
+.deleteButtonActive {
+  opacity: 1;
+  color: #ff4d4f;
+}
