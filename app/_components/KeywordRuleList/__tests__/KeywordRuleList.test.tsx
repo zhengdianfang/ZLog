@@ -4,10 +4,13 @@
 import { renderToString } from "react-dom/server";
 
 jest.mock("@/app/stores/keywordStore");
+jest.mock("@/app/actions/keywordRules");
 
 import { useKeywordStore } from "@/app/stores/keywordStore";
+import { deleteKeywordRule } from "@/app/actions/keywordRules";
 
 const mockUseKeywordStore = useKeywordStore as unknown as jest.Mock;
+const mockDeleteKeywordRule = deleteKeywordRule as jest.MockedFunction<typeof deleteKeywordRule>;
 
 const ruleA = { id: "1", type: "error" as const, description: "Crash log", pattern: "/FATAL/" };
 const ruleB = { id: "2", type: "warn" as const, description: "Slow response", pattern: "/SLOW/" };
@@ -18,10 +21,12 @@ const baseStore = (savedRules: KeywordRule[], rules: KeywordRule[]) => ({
   savedRules,
   rules,
   setActiveRuleIds: jest.fn(),
+  removeRule: jest.fn(),
 });
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDeleteKeywordRule.mockResolvedValue(undefined);
 });
 
 describe("KeywordRuleList", () => {
@@ -52,6 +57,15 @@ describe("KeywordRuleList", () => {
     expect(html).toContain(`aria-label="Remove rule: Slow response"`);
   });
 
+  it("renders delete button for each active rule with correct aria-label", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA, ruleB], [ruleA, ruleB]));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { KeywordRuleList } = require("../KeywordRuleList");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain(`aria-label="Delete rule: Crash log"`);
+    expect(html).toContain(`aria-label="Delete rule: Slow response"`);
+  });
+
   it("shows placeholder text when no active rules exist", () => {
     mockUseKeywordStore.mockReturnValue(baseStore([], []));
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -74,5 +88,13 @@ describe("KeywordRuleList", () => {
     const { KeywordRuleList } = require("../KeywordRuleList");
     const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
     expect(html).toContain("#fef2f2");
+  });
+
+  it("renders delete button with deleteButton CSS class", () => {
+    mockUseKeywordStore.mockReturnValue(baseStore([ruleA], [ruleA]));
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { KeywordRuleList } = require("../KeywordRuleList");
+    const html = renderToString(<KeywordRuleList onEdit={jest.fn()} />);
+    expect(html).toContain("deleteButton");
   });
 });

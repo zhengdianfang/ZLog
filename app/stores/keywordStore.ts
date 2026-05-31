@@ -1,10 +1,6 @@
 import { create } from "zustand";
 import type { KeywordRule } from "@/app/types/keyword";
-import {
-  saveKeywordRule,
-  deleteKeywordRule,
-  fetchKeywordRules,
-} from "@/app/actions/keywordRules";
+import { saveKeywordRule, fetchKeywordRules } from "@/app/actions/keywordRules";
 
 interface FocusedLine {
   index: number;
@@ -45,7 +41,6 @@ export const useKeywordStore = create<KeywordStore>((set) => ({
       savedRules: state.savedRules.filter((r) => r.id !== id),
       rules: state.rules.filter((r) => r.id !== id),
     }));
-    deleteKeywordRule(id);
   },
   setActiveRuleIds: (ids) => {
     set((state) => ({ rules: state.savedRules.filter((r) => ids.includes(r.id)) }));
